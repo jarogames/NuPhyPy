@@ -1,0 +1,162 @@
+#!/bin/bash
+###################
+#
+# yet: setup printer xmgrace
+####################
+function check_input {
+echo _________________________________________
+    echo -n "# coupled partial waves                     "
+    grep chans=1 $1 >/dev/null
+    if [ $? = 0 ]; then
+	echo ... PRINT
+    else
+	echo ... no print
+    fi
+
+    echo -n "# coupling coefficients                     "
+    grep listcc=1 $1 >/dev/null
+    if [ $? = 0 ]; then
+	echo ... PRINT
+    else
+	echo ... no print
+    fi
+
+    echo -n "# S-matrices for reaction channels  fort.7  "
+    grep smats=1 $1 >/dev/null
+    if [ $? = 0 ]; then
+	echo ... PRINT
+    else
+	echo ... no print
+    fi
+
+    echo -n "# S-matrices for reactions and elastic      "
+    grep smats=2 $1 >/dev/null
+    if [ $? = 0 ]; then
+	echo ... PRINT
+    else
+	echo ... no print
+    fi
+
+    echo -n "# cross sections fort.16  fort.13           "
+    grep xstabl=1 $1 >/dev/null
+    if [ $? = 0 ]; then
+	echo ... PRINT
+    else
+	echo ... no print
+    fi
+
+    echo -n "# Coupling prior/post                       "
+    grep ip1=0 $1 >/dev/null
+    if [ $? = 0 ]; then
+	echo ... POST
+    else
+	grep ip1=1 $1 >/dev/null
+	if [ $? = 0 ]; then
+	    echo ... PRIOR
+	else
+	    echo ... i dont know
+	fi
+    fi
+
+
+
+    echo -n "# Remnant                                   "
+    grep ip2=0 $1 >/dev/null
+    if [ $? = 0 ]; then
+	echo ... NO remnant
+    else
+	grep ip2=1 $1 >/dev/null
+	if [ $? = 0 ]; then
+	    echo ... REAL remnant
+	else
+	    grep ip2=-1 $1 >/dev/null
+	    if [ $? = 0 ]; then
+		echo ... FULL CMPX remnant
+	    else
+		echo ... i dont know
+	    fi
+	fi
+    fi
+echo _________________________________________
+
+}
+
+
+###################################
+#
+#  tests
+#
+###################################
+wine --version >/dev/null
+if [ "$?" != "0" ]; then
+    echo  !... Install wine first !
+    exit 1
+fi
+echo ... current directory is `pwd`
+FRXP=`which fresco-winxp.exe`
+if [ "$?" != "0" ]; then
+    echo !... fresco-winxp.exe no found
+    exit 1
+fi
+if [ "$1" == "" ]; then
+    echo !... no input given
+    exit -1
+fi
+##############################################
+#
+#   MAIN      MAIN     MAIN      MAIN      MAIN
+#
+################################################
+echo ... FRESCO found at  `which fresco-winxp.exe` :
+#echo ... running fresco-winxp.exe   using wine
+echo input = $1
+# Rename main outputs
+input=$1
+base=${input%%.*}
+####################### vychytavka.
+if [ "$2" = "" ]; then
+ OUT=`basename $1 .inp`.out
+ echo output = $OUT
+else
+ OUT=$2
+fi
+###### going to check - main function ####
+check_input $1
+
+
+ wine `which fresco-winxp.exe` < $1 > $OUT
+##### wine /home/mrazek/00_central/Fresco/81_xfresco_20/xfresco-2.2/bin/fresco-winxp.exe < $1 > $OUT
+echo  Fresco execution ended. recommendations:
+grep Recommend $OUT
+
+
+
+
+#exit
+mv $OUT    $base.out  2>/dev/null
+
+cp fort.201 $base.201
+cp fort.202 $base.202 2>/dev/null
+cp fort.203 $base.203 2>/dev/null
+cp fort.204 $base.204 2>/dev/null
+cp fort.205 $base.205 2>/dev/null
+
+cp fort.16 $base.16
+cp fort.13 $base.13
+cp fort.56 $base.56
+
+#echo xmgrace  -noask -free  fort.16 \&
+#echo xmgrace  -noask -free  $base.201 \&
+#if [ -e  $base.202 ]; then echo xmgrace  -noask -free  $base.202 \&; fi
+#if [ -e  $base.203 ]; then echo xmgrace  -noask -free  $base.203 \&; fi
+#if [ -e  $base.204 ]; then echo xmgrace  -noask -free  $base.204 \&; fi
+#if [ -e  $base.205 ]; then echo xmgrace  -noask -free  $base.205 \&; fi
+echo _________________________________________
+
+exit
+# and delete the rest
+#rm fort.??
+#exit
+##############
+#To get the basename (without extension) I use:
+#base=${input%%.*}
