@@ -1,0 +1,738 @@
+#!/usr/bin/env python3
+import sys
+import os
+import tempfile   # create tempdir
+import shutil     # rm tempdir, copytree NOT GOOD ENOUGH
+import glob, os   # find file in directory
+from distutils.dir_util import copy_tree  # copytree
+import subprocess
+from contextlib import contextmanager       # for CD with context
+from xvfbwrapper import Xvfb  # invisible RUN
+
+#######3https://web-docs.gsi.de/~weick/atima/
+
+TRIMAUTO="""1
+
+TRIMAUTO allows the running of TRIM in batch mode (without any keyboard inputs).
+This feature is controlled by the number in line #1 (above).
+  0 = Normal TRIM - New Calculation based on TRIM.IN made by setup program.
+  1 = Auto TRIM - TRIM based on TRIM.IN. No inputs required. Terminates after all ions.
+  2 = RESUME - Resume old TRIM calculation based on files: SRIM Restore\*.SAV.
+
+  Line #2 of this file is the Directory of Resumed data, e.g. A:\TRIM2\
+  If empty, the default is the ''SRIM\SRIM Restore'' directory.
+
+See the file TRIMAUTO.TXT for more details.
+""";
+
+###################################
+#  this part should return to CUR DIR
+#   after the context ends...
+####################################
+@contextmanager
+def cd(newdir):
+    prevdir = os.getcwd()
+    dirname=os.path.dirname( newdir )
+
+    os.chdir(os.path.expanduser( dirname ))
+    #print('i... from',prevdir,'entering',dirname )
+    try:
+        yield
+    finally:
+        #print('i... cd back to ',prevdir)
+        os.chdir(prevdir)
+
+
+def CheckSrimFiles():
+    '''
+    I want to find installation of SRIM that i can copy to tmp
+    '''
+    home = os.path.expanduser("~")
+    paths=[home]
+    paths.append(home+'/srim/')
+    paths.append(home+'/bin/srim/')
+    paths.append(home+'/.wine/drive_c/Program Files/SRIM/')
+    MyPath= os.path.abspath(__file__)
+    paths.append( os.path.dirname(MyPath)+'/srim_binary/rundir/'  )
+    #
+    #    print('i... checking PATH',  paths)
+    for path in paths:
+        if os.path.exists(path):
+            print('i... checking path ', path )
+            for file in os.listdir( path ):
+                if file=='TRIM.exe':
+                    RPATH=path
+                    print('+... found SRIM.exe in ',path)
+    return RPATH
+
+
+
+
+##############################################
+#
+#      DATA READOUT
+
+def srim_readout(temppath):
+    with cd(temppath):
+        with open(r'SRIM Outputs/TRANSMIT.txt') as f:
+            cont=f.readlines()
+            f.close()
+        while cont[0].find('Numb Numb')<0:
+            cont.pop(0)
+        cont.pop(0)
+        return [x.rstrip() for x in cont]
+        
+            
+
+def run_srim(RPATH, TRIMIN , strip=True, silent=False ):
+    '''
+    This creates and environment in /tmp 
+    where TRIM.exe can be run
+    TRIMIN contains all TRIM.IN text.
+    strip... strip points above 3sigma
+    '''
+    ############## CREATE TEMP #####################
+    temppath = tempfile.mkdtemp(suffix='.srim')+'/'
+    if not silent: print('x... copying from',RPATH,'to',temppath)
+    copy_tree( RPATH , temppath )
+#    os.chdir(temppath)
+    ####################### IN CD CONTEXT #############
+    with cd(temppath):
+        for file in glob.glob("TRIM.exe"):
+            if not silent: print('    : ',file)
+        with open('TRIM.IN','w') as f:
+            f.write( TRIMIN )
+            f.close()
+        with open('TRIMAUTO','w') as f:
+            f.write( TRIMAUTO )
+            f.close()
+#################################################### PROCESS WITH WAIT ####    
+            process = subprocess.Popen('wine TRIM.exe'.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            output, error = process.communicate()
+
+#################################################### PROCESS WITH WAIT ####
+
+    
+#################################################### PROCESS NO WAIT ####
+        #vdisplay = Xvfb(width=1280, height=740, colordepth=16)
+        #vdisplay.start()
+#        process = subprocess.Popen('wine TRIM.exe'.split())
+        #print('CMD ended with string=',output,'... with error=',error)
+        #vdisplay.stop() #
+#################################################### PROCESS NO WAIT ####
+
+#   return temppath
+#def recollect_srim( temppath,  strip=True ):
+    #import os
+    #import time
+    #vdisplay.stop()
+    if not os.path.exists(temppath):
+        print('!... Path',temppath,'DOES NOT EXIST !')
+        return None
+    #    os.chdir(temppath)
+    with cd(temppath):
+        if os.path.exists(r'SRIM Restore/TDATA.sav'):
+            if not silent: print('ok')
+        else:
+            print('!... data not ready ',temppath,'... return')
+            return None
+    #
+    data=srim_readout( temppath )
+        
+    # back with cd() =============================
+    datas=[ (x.split()[1:]) for x in data ]
+    datas=[ [ float(j) for j in i ] for i in datas ]
+    from pandas import DataFrame
+    df = DataFrame(datas, columns=['n','i','e','x','y','z','cosx','cosy','cosz'])
+    df['e']=df['e']/1000000.  # MeV
+    df['x']=df['x']/10000.  # um
+    df['y']=df['y']/10000.  # um
+    df['z']=df['z']/10000.  # um
+    #print( df.iloc[-5:][['e','x','y','z','cosx','cosy'] ] )
+    df.drop('i', axis=1, inplace=True)
+    df.drop('n', axis=1, inplace=True)
+    if strip:
+        llen=len(df)
+        sigma=df['e'].std()
+        mean=df['e'].mean()
+        df=df.loc[ (df['e']>mean-3*sigma)&(df['e']<mean+3*sigma) ]  #&
+        if not silent:print('i... ',llen - len(df),'event was removed due to sigma limit' )
+        sigma=df['e'].std()
+        mean=df['e'].mean()
+        df=df.loc[ (df['e']>mean-3*sigma)&(df['e']<mean+3*sigma) ]  #&
+        if not silent:print('i... ',llen - len(df),'event was removed due to sigma limit' )
+        ###########################  DELETE TEMP #########
+    if not silent:print('x... deleting temporary', temppath)
+    shutil.rmtree(temppath)
+    return df
+
+
+
+# in perl:
+#     - convolution with nehomogenities
+#     - analyse range
+#     - gpressTAB  STD    my $densNEW=$densSTD  *  $p/1013.25  *   273.15/$T;
+#     -   if ( $args{"fthick"} >0){           amoeba
+
+
+
+
+
+
+
+##################################################
+#
+#
+#
+###################################################
+
+
+def PrepSrimFile( **kwargs ):
+    '''
+    thickness in  mg/cm2 from NOW
+    '''
+    OT=   proj( kwargs['ion'],kwargs['energy'],kwargs['angle'],kwargs['number'] )
+    OT=OT+targ( kwargs['mater'],kwargs['thick'],kwargs['ion'],kwargs['dens'] )
+    return OT
+
+
+def proj( ion, energy, angle, number , seed=765):
+    ####  Z, Amu,  Energy,  Angle,  Number, BraggCorr, AutoNum
+    ####   Z, Amu, BragggCor   #########3
+    pro={'h1'  :[ 1, 1.00782503,  1.0 ],   #0.9570329
+         'h2'  :[ 1, 2.014101777, 1.0   ] ,
+         'h3'  :[ 1, 3.01604928 , 1.0   ] ,
+         'he3' :[ 2, 3.01602,     1.0   ] ,
+         'he4' :[ 2, 4.00260325,  1.0   ] ,
+         'be9' :[ 4, 9.012,       1.0   ] ,
+         'be10':[ 4, 10.01353382, 1.0   ] ,
+         'b8'  :[ 5, 8.02460723,  1.0   ] ,
+         'b10' :[ 5, 10.01293699, 1.0   ] ,
+         'b11' :[ 5, 11.00930541, 1.0   ] ,
+         'c12' :[ 6, 12.000,      1.0   ] ,
+         'c13' :[ 6, 13.00335484, 1.0   ] ,
+         'c14' :[ 6, 14.00324199, 1.0   ] ,
+         'o14' :[ 8, 14.0086,     1.0   ] ,
+         'o16' :[ 8, 15.995,      1.0   ] ,
+         'f19' :[ 9, 18.9984,     1.0   ] ,
+         'ne20':[ 10, 19.992440,  1.0   ] }
+
+    if ion.namesrim in pro:
+        print(ion.namesrim, '... PROJECTILE ALREADY DEFINED',pro[ion.namesrim])
+    else:
+        print(ion.namesrim,'not defined, I am defining it now')
+        pro[ion.namesrim]=[ ion.Z, ion. amu, 1.0 ]    ## Bragg Corr i set to 1.0/C+C,h1+c,he4+c,
+        print(ion.namesrim, 'DEFINED',pro[ion.namesrim])
+
+    pro[ion.namesrim].insert( 2, energy*1000. )
+    pro[ion.namesrim].insert( 3, angle )
+    pro[ion.namesrim].insert( 4, number )    # N
+    pro[ion.namesrim].append(  number-1 )     # AUTOSAVENUMBER
+    
+#    print( 'ION:',ion, pro[ion] )
+    line1=' '+'   '.join(map(str,pro[ion.namesrim]))
+    li2=[1, seed, 0]
+    line2=' '+'   '.join(map(str,li2))
+#    print(line1,line2)
+    
+    template_proj1="Ion: Z1 ,  M1,  Energy (keV), Angle,Number,Bragg Corr,AutoSave Number."
+    template_proj2="Cascades(1=No;2=Full;3=Sputt;4-5=Ions;6-7=Neutrons), Random Number Seed, Reminders"
+    template_proj3="Diskfiles (0=no,1=yes): Ranges, Backscatt, Transmit, Sputtered, Collisions(1=Ion;2=Ion+Recoils), Special EXYZ.txt file"
+    template_proj4="    1       0           1       0               0                               0"
+
+    OUTTEXT=""
+    OUTTEXT=OUTTEXT+'\r\n'
+    OUTTEXT=OUTTEXT+template_proj1 +'\r\n'
+    OUTTEXT=OUTTEXT+line1 +'\r\n'
+    OUTTEXT=OUTTEXT+template_proj2 +'\r\n'
+    OUTTEXT=OUTTEXT+line2 +'\r\n'
+    OUTTEXT=OUTTEXT+template_proj3 +'\r\n'
+    OUTTEXT=OUTTEXT+template_proj4 +'\r\n'
+
+    return OUTTEXT
+#    print(OUTTEXT)
+#    print('------- projectile done ------------')
+
+
+
+    
+############################################
+def targ(  name, thick,   ion,  dens=0.0  ):
+    '''
+    thickness in mg/cm2 from NOW
+    ...
+    This should hadle now:
+    li li6 li7 ... c c12 c13 c14
+    ELEMENTAL TARGETS - if dens==0 : density from tables
+    ISOTOPIC TARGETS  - if dens==0 : density calculated from elemental/molar_mass
+    ... gaseous elements H,He,NOFNe...Ra / isotopes=simply by Z
+    COMPOUNDS -  ??????
+    !!! check CORRECT VALUES FOR BragCorr, indiv Displac/Latti/Surf !!!
+    '''
+
+    heatsubl=[
+       .00, 
+       .00,
+       .00,
+      1.67,
+      3.38,
+      5.73,
+      7.41,
+          2.00,
+          2.00,
+          2.00,
+          2.00,
+      1.12,
+      1.54,
+      3.36,
+      4.70,
+      3.27,
+      2.88,
+          2.00,
+          2.00,
+       .93,
+      1.83,
+      3.49,
+      4.89,
+      5.33,
+      4.12,
+      2.98,
+      4.34,
+      4.43,
+      4.46,
+      3.52,
+      1.35,
+      2.82,
+      3.88,
+      1.26,
+      2.14,
+           2.00,
+           2.00,
+       .86,
+      1.70,
+      4.24,
+      6.33,
+      7.59,
+      6.83,
+            2.00, #Tc
+      6.69,
+      5.78,
+      3.91,
+      2.97,
+      1.16,
+      2.49,
+      3.12,
+      2.72,
+      2.02,
+           2.00, #I
+           2.00, #Xe
+       .81,
+      1.84,
+      4.42,
+      4.23,
+      3.71,
+      3.28,
+           2.00, #Pm
+      2.16,
+      1.85,
+      3.57,
+      3.81,
+      2.89,
+      3.05,
+      3.05,
+      2.52,
+      1.74,
+      4.29,
+      6.31,
+      8.10,
+      8.68,
+      8.09,
+      8.13,
+      6.90,
+      5.86,
+      3.80,
+       .64,  # Hg
+      1.88,
+      2.03,
+      2.17,
+      1.50,
+           2.00,  #At
+           2.00, #Rn
+           2.00, 
+           2.00, #Ra
+           2.00, #AC
+      5.93,
+           2.00, #Pa
+      5.42 ]
+
+    
+    indivdisp=[
+        0 ,
+        10     ,
+        5   ,
+        25    ,
+        25    ,
+        25   ,
+        28   ,
+        28    ,
+        28   ,
+        25    ,
+        5    ,
+        25    ,
+        25    ,
+        25    ,
+        15    ,
+        25    ,
+        25     ,
+        25    ,
+        5  ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        15   ,
+        25    ,
+        25   ,
+        25   ,
+        5    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        25    ,
+        5   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25    ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25  ,
+        25   ,
+        25  ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25   ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25  ,
+        25   ,
+        25   ,
+        25 ,
+        25  ,
+        25  ,
+        25 ,
+        25, 
+        25 
+        ]
+
+    
+    lattdisp=[
+        0,
+        3    ,
+        1  ,
+        3   ,
+        3   ,
+        3  ,
+        3  ,
+        3   ,
+        3  ,
+        3   ,
+        1   ,
+        3   ,
+        3   ,
+        3   ,
+        2   ,
+        3   ,
+        3    ,
+        3   ,
+        1 ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        2  ,
+        3   ,
+        3  ,
+        3  ,
+        1   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        3   ,
+        1  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3   ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3 ,
+        3  ,
+        3 ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3  ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3 ,
+        3  ,
+        3  ,
+        3,
+        3 ,
+        3 ,
+        3,
+        3,
+        3
+        ]
+    ####  Z, Amu,  Energy,  Angle,  Number, BraggCorr, AutoNum
+    ####   Z, Amu, BragggCompCorr, indivDispl,  indivLattice, indivSurf==heatSubl
+    mat={#'li'          :[ 3,    6.941,     1.0,     25,      3,    1.67  ],
+     #    'h'           :[ 1,    1.008,     1.0,     20,      3,    2     ],
+     #    'be'          :[ 4,    9.012,     1.0,     25,      3,    3.38  ],
+     #    'b8'          :[ 5,    8.0246,    1.0,     25,      3,    5.73  ],
+     #    'n14'         :[ 7,    14.007,    1.0,     28,      3,    2     ],
+     #    'n'           :[ 7,    14.007,    1.0,     28,      3,    2     ],
+     #    'c'           :[ 6,    12.011,    1.0,     28,      3,    7.41  ],
+     #    'o'           :[ 8,    15.999,    1.0,     28,      3,    2     ],
+     #                            
+     #    'cgraphite'   :[ 6,    12.011,    1.0,     28,      3,    7.41  ],
+     #    'c12graphite' :[ 6,    12.0,      1.0,     28,      3,    7.41  ],
+     #    'camo'        :[ 6,    12.011,    1.0,     28,      3,    7.41  ],
+     #    'c14'         :[ 6,    14.0032,   1.0,     28,      3,    7.41  ],
+     #    'c14amo'      :[ 6,    14.0032,   1.0,     28,      3,    7.41  ],
+     #    'c12'         :[ 6,    12.00,     1.0,     28,      3,    7.41  ],
+     #    'c12amo'      :[ 6,    12.0,      1.0,     28,      3,    7.41  ],
+     #    'mg'          :[ 12,   24.305,    1.0,     25,      3,    1.54  ],
+     #    'mg26'        :[ 12 ,  25.983,    1.0,     25,      3,    1.54  ],
+     #    'al'          :[ 13,   26.982,    1.0,     25,      3,    3.36  ],
+     #    'si'          :[ 14,   28.086,    1.0,     15,      2,    4.7   ],
+     #    'ti'          :[ 22,   47.9,      1.0,     25,      3,    4.89  ],
+     #    'fe'          :[ 26,   55.847,    1.0,     25,      3,    4.34  ],
+     #    'cu'          :[ 29,   63.546,    1.0,     25,      3,    3.52  ],
+     #    'nb'          :[ 41,   92.906,    1.0,     25,      3,    7.59  ],
+     #    'ta'          :[ 73,  180.95,     1.0,     25,      3,    8.1   ],
+     #    'au'          :[ 79,  196.97,     1.0,     25,      3,    3.8   ],
+         ########   prvky +  stoich,   CompoundBragg       density
+         'mylar'  : [{ 'h': 0.363636 },{ 'c': 0.454545 },{ 'o': 0.181818 }, 0.9570329,  1.397 ],
+         'ch2'    : [{ 'h': 0.666667 },{ 'c': 0.333333 }, 0.9843957 , 0.93  ],
+         'cd2'    : [{ 'h': 0.666667 },{ 'h2': 0.333333 }, 0.9843957 , 1.062857 ],
+         'lif'    : [{ 'li': 0.5 },{ 'f': 0.5 }, 1.0 , 2.635 ],
+         'cd2'    : [{ 'h': 0.666667 },{ 'h2': 0.333333 }, 0.9843957 , 1.062857 ],
+#         'havar'  : [{ 'c': 0.666667 },{ 'cr': 0.333333 }, 0.9843957 , 1.062857 ],
+         'melamin': [{ 'c': 0.2 },{ 'h': 0.4 },{ 'n': 0.4 }, 1.0 , 1.574 ],
+         'air'    : [{ 'c': 0.000124 },{ 'o': 0.231781 },{ 'n': 0.755268 }, { 'ar': 0.012827 },1.0,0.00120484 ],
+         
+    #     'ar':[ 10, 19.992440,  0.0   ]
+    }
+
+    isgas=-1
+    if name in mat:
+        print(name, '... MAT IS KNOWN AND DEFINED',mat[name])
+        # THIS CAN HAPPEN ONLY FOR COMPOUNDS NOW....................
+    else:
+        print(name,'MAT NOT defined ... ')
+        from NuPhyPy.db.ReadNubase import gas,densities,elements,molarweights
+        if name.title() in elements:
+            print(name.title(),'ELEMENT detected ... ')
+            eZ=elements.index(name.title())
+            isgas=gas[ eZ ]
+            heatsu= heatsubl[eZ]
+            #if isgas==1: heatsu=0.0
+            mat[name]=[ eZ,molarweights[eZ], 1., indivdisp[eZ], lattdisp[eZ], heatsu ]
+        else:
+            print(name,'Isotope detected ... ')
+            import NuPhyPy.db.ReadNubase as db
+            isotope=db.isotope( name )
+            eZ=isotope.Z
+            isgas=gas[ eZ ]
+            heatsu= heatsubl[eZ]
+            #if isgas==1: heatsu=0.0
+            mat[name]=[ eZ, isotope.amu,  1., indivdisp[eZ], lattdisp[eZ],  heatsu ] 
+
+        print(name, 'MAT ... ',mat[name], ' is gas==',isgas)
+        #print('!... ============= not correct ====== VERIFY INPUT in SRIM!')
+
+    
+    line=[]
+    line.append("Target material : Number of Elements & Layers")
+    line.append("\"HHHHH into MMMMM                     \"       1               1")
+    line.append("PlotType (0-5); Plot Depths: Xmin, Xmax(Ang.) [=0 0 for Viewing Full Target]")
+    line.append("       5                         0          0")
+    line.append("Target Elements:    Z   Mass(amu)")
+    #5
+    line.append("Atom 1 = MMMMM =        ZZZZZ   AAAAA")  
+    line.append("Layer   Layer Name /               Width Density     Be(4)")
+    line.append("Numb.   Description                (Ang) (g/cm3)    Stoich")
+    line.append(" 1      \"MMMMM\"             WWWWW    DDDDD       1")
+    line.append("0  Target layer phases (0=Solid, 1=Gas)")
+    #10
+    line.append("0")
+    line.append("Target Compound Corrections (Bragg)")
+    line.append(" 1")
+    line.append("Individual target atom displacement energies (eV)")
+    line.append("      25")
+    #15
+    line.append("Individual target atom lattice binding energies (eV)")
+    line.append("       3")
+    line.append("Individual target atom surface binding energies (eV)")
+    line.append("    1.67")
+    line.append("Stopping Power Version (1=2006, 0=2006)")
+    #20
+    line.append(" 0")
+    line.append("")
+
+    line[1]=line[1].replace('MMMMM', name )
+    line[1]=line[1].replace('HHHHH', ion.namesrim )
+
+    line[5]=line[5].replace('MMMMM', name )
+    line[5]=line[5].replace('ZZZZZ', str(mat[name][0]) )
+    line[5]=line[5].replace('AAAAA', str(mat[name][1]) )
+
+    # GET TABLE DENSITY 
+    if dens<=0.0:
+#        print('i... density is given 0 - trying to find a rho for...',name.title())
+        from NuPhyPy.db.ReadNubase import gas,densities,elements
+        if name.title() in elements:
+            CC=name.title()
+            #print(CC,type(CC))
+            zzz=elements.index(CC)
+            #print(zzz)
+            dens=densities[ elements.index(name.title() ) ]
+            print('i... element ',name.title(),'found, density is set to:', dens)
+        else:
+ #           print('i... element NOT found, maybe it is an isotope?')
+            import NuPhyPy.db.ReadNubase as db
+            from NuPhyPy.db.ReadNubase import gas,densities,elements
+            isotope=db.isotope( name )
+            dens=isotope.isodensity
+            print('i...  isotope:',isotope.name,'found;  density is set to:',dens)
+
+    line[8]=line[8].replace('DDDDD', str(dens) )
+    #um_thickness * rho
+    print('i... Thickness: {:.5f} mg/cm2 ==> {:.3f} um'.format( thick, 1000*thick/dens/1e+2 )  )
+    #line[8]=line[8].replace('WWWWW', str(thick*10000.) ) # thickness will be ug/cm2 in future
+    line[8]=line[8].replace('WWWWW', str( 1000*thick/dens/1e-2  ) )  # in Angstr
+    line[8]=line[8].replace('MMMMM', name )
+
+
+    if isgas>0:
+        print('!... ASSUMING GASEOUS ', name.title() )
+        line[10]=line[10].replace('0', str( isgas) )  # SOILID 0,  GAS 1
+
+    line[12]=str(mat[name][2])  # BragCorr 1.0
+    line[14]=str(mat[name][3])  # indivDsplacement 25-28
+    line[16]=str(mat[name][4])  # indivLatice  3
+    line[18]=str(mat[name][5])  # indivSurf    1.67-7.41
+
+    OUTTEXT=""
+    for i in range(len(line)):
+        OUTTEXT=OUTTEXT+line[i] +'\r\n'
+
+    return OUTTEXT
+#    print( OUTTEXT )
+#    print('------- target done ------------')
+
+
+
+#######  um to  mg/cm2   and back ######
+def get_mgcm2(t_in_um,  dens):
+    return t_in_um*1e-6 * 100 * dens*1000
+def get_um(t_in_mgcm2,  dens):
+    return 1000*t_in_mgcm2/dens/1e+2
+
+
+
+
+
+
+
+
+#########################################################
+# MAIN
+#########################################################
+#sys.modules[__name__]
+if __name__ == "__main__":
+#    print("running ",sys.modules[__name__],"as main")
+    print("running ",__file__,"as main")
+    ipath=CheckSrimFiles()
+#    import NuPhyPy.db.ReadNubase as db
+#    alpha=db.isotope(4,2)
+#    c12=db.isotope(12,6)
+#    h1=db.isotope(1,1)
+    PrepSrimFile( ion='h1', energy=5.8, angle=0., number=100 ,
+                  mater='c12', thick=10, dens=1.85  )
+    create_env(ipath)

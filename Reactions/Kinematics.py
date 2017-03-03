@@ -18,7 +18,14 @@ def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, E
 
         #print("   AMUs (nudat): %f %f %f %f" % (m1,m2,m3,m4) )
         es=t + m1  + m2;
+        ##### JAROCMS p1 good; E1 ^2=(t + m1)**2  ####
         p1=sqrt(     (t + m1)**2  - m1**2  )
+        ######### JAROCMS Ecms  from invariant # p3cform= sum p^2/2m
+        Ecms2= (t + m1)**2   +  m2**2  + 2*(t + m1)*m2 - p1**2
+        Ecms=sqrt( Ecms2 )
+        TKEcms=Ecms-m1-m2
+        ##print( "TKEcms=",TKEcms)
+        
         # theta is defacto theta3.
         costh3=cos( theta * 3.1415926535/180);
         sinth3=sin( theta * 3.1415926535/180);
@@ -215,6 +222,7 @@ def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, E
                 print("        ExcTg=%15.5f (input tgt excitation)" % ExcT )
                 print("        p3c  =%15.5f"  % p3c )
                 print("        p4c  =%15.5f"  % p4c )
+                print("     TKE1CMS =%15.5f"  %  TKEcms )
                 print("     EtotCMS =%15.5f"  %  p3cform )
                 #                              print "total Ek =  ",($p3c**2)/2/$m3+($p4c**2)/2/$m4 , "\n";
                 print("        p3   =%15.5f     b  p3b  =%15.5f" %  (p3,p3b) )
@@ -233,7 +241,8 @@ def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, E
 
         rs=t3a;
         
-        return t3a,t3b,th3cm,th3cmb,ttr,convsig
+#        return t3a,t3b,th3cm,th3cmb,  p3cform  ,convsig
+        return t3a,t3b,th3cm,th3cmb,  TKEcms  ,convsig
         #print("        Kscsl=%15.5f (sigma_cms=K*sigma_lab)" % convsig )
         #print("     b  Kscsl=%15.5f sigma_cms=K*sigma_lab)" % convsigb )
 
@@ -306,7 +315,10 @@ def react( a,b,  c,d, TKE=1, theta=10, ExcT=0 , silent=0):
 if __name__ == "__main__":
     print("running Kinematics.py as main")
     
-    r=_REACT( 3.01602931959, 14931.2155,15.9949146198, -4737.0013,
-           3.01602931959,    14931.2155,15.9949146198, -4737.0013,
+    r=_REACT( 3.01602931959, 14931.2155,
+              15.9949146198, -4737.0013,
+              3.01602931959, 14931.2155,
+              15.9949146198, -4737.0013,
+              TKE=24.96,
            theta=10.0  )
     print(r)

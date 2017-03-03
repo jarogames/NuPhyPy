@@ -23,9 +23,15 @@ def isfloat(value):
     except ValueError:
         return False
 
+############################## i want to call import NuPhyPy.Fresco as fr
+########################                       o16fr=fr.newtask(  'coulomb.inp' , silent=True )
 
-class frespar:
-    DICT={}
+class newtask:
+    '''
+    SECTION contains sections  &name ..... /
+    some values must ne inegers  .. integs
+    '''
+    SECTION={}
     npartitions=0
     npartitionsta=0
     pot=0
@@ -36,43 +42,47 @@ class frespar:
         'ic1', 'ic2','in', 'kind', 'nn', 'l', 'kbpot', 'isc', 'ipc',
         'in', 'ib','ia','kn',
         'icfrom', 'icto', 'kind', 'ip1', 'ip2', 'ip3' ]
-#    DICT['FRESCO']={'hcm':0.05, 'rmatch':30}  #dict  of dicts
+#    SECTION['FRESCO']={'hcm':0.05, 'rmatch':30}  #dict  of dicts
 
     lastinput=''
 
-    def __init__(self,filename):      ######## READ CONFIG TO DICT
+    def __init__(self,filename, silent=True):      ######## READ CONFIG TO SECTION
+        '''
+        MAIN PROC
+        init: opens .inp file
+              extracts a LABEL
+              detects NAMELIST
+              removes comments / blablabla
+              and anaylses the SECTION  &start .... /  in identsection
+                  after he has SECTION keys
+        '''
+        self.SECTION={} # 
         #frescopath= os.path.dirname( os.path.abspath(__file__) )
         #print("FREPATH", frescopath)
         self.lastinput=filename
-        #print( self.DICT['FRESCO']['hcm'])
+        #print( self.SECTION['FRESCO']['hcm'])
         with open( filename ,'r') as out:
             line1=out.readline().rstrip()
             self.LABEL=line1
-            print( line1 ,'-----------------------------\n')
+            print( 'FRESCO /',filename,'/ ... LABEL: ',line1)
             if ( out.readline().rstrip() != 'NAMELIST' ):
                 print('problem with line2 - not NAMELIST')
                 exit(1)
             section=''    
             for line in out:
-                #if (len(line.rstrip())>0):
-                    #print('XXXXX', line.rstrip() )
                 line=line.rstrip()+' '#re.sub( '\n' , ' ', line) ADD SPACE to compensate \n
                 section=section+line
                 if (section.count('/')>0 ):
                     section=re.sub( '/.+' , '', section)   # clear all after the slash
-                    #print( section )
-                    #exit(0)
-                    #self.creadict()
                     self.identsection( section )
                     section=''
-                    
-            #print( self.DICT['FRESCO'] )
-            #print( self.DICT['PARTITION'] )
-            #print( self.DICT )
-            print('----------------------------------------------------------')
-            for i in sorted(self.DICT.keys()):
-                print(i, self.DICT[i] )
-            print('OK FILE IN MEMORY---------------------------------------------')
+            if not silent:
+                print('--------GETTING FILE TO MEMORY----------------------------------------')
+                for i in sorted(self.SECTION.keys()):
+                    print(i, self.SECTION[i] )
+                print('--------OK FILE IN MEMORY---------------------------------------------')
+
+
 
 
 #######################################################
@@ -82,16 +92,26 @@ class frespar:
 #
 #
 #################################################
-
-
-
     def identsection(self, section ):
+        '''
+        2nd to MAIN
+        This procedure takes one section and compares with
+              FRESCO,  PARTITION  STATES  POT  Overlap   Coupling   CFP
+        With the input it can call:
+               filldictFRE
+        or
+               filldict
+        the problems were several:
+               read parameter lists, 
+               elab(1)
+               POT kp=i   complex sections
+        '''
         sobfresco=re.search( r'&FRESCO [\w\d=\s\.\-\()\:]+',  section , re.IGNORECASE )
         if (sobfresco):
         #    print( '======FRESCOG:\n',sobfresco.group(0) )
 #            self.filldict(  sobfresco.group(0) ,'FRESCO')
             self.filldictFRE(  sobfresco.group(0) )
-            print( self.DICT)
+#            print( self.SECTION)
         
         sobfresco=re.search( r'&PARTITION [\w\d=\'\"\w\s\.\-\()\:]+',  section , re.IGNORECASE )
         if (sobfresco):
@@ -135,9 +155,10 @@ class frespar:
             
 
 
+            
 
-############################################3
-###############3
+
+###########################################################
 #
 #         FRESCO doesnt have subsetions or complications.
 #
@@ -145,9 +166,9 @@ class frespar:
 ############################################
 
     def filldictFRE( self , group  ):
-        print('=====', group ,'=====\n')
-        if (  not 'FRESCO' in  self.DICT ):
-            self.DICT['FRESCO']={}
+        #print('=====', group ,'=====\n')
+        if (  not 'FRESCO' in  self.SECTION ):
+            self.SECTION['FRESCO']={}
         # new strategy:   
         #       1/ remove all \s  before  =
         #       2/ rm all \s  inside '  '
@@ -158,12 +179,12 @@ class frespar:
         group = re.sub( r'(\(\S*)\s+(\S*\))', r'\1\2', group )
         group = re.sub( r'(\'.*)\s+(.*\')', r'\1\2', group )
 
-        print('=====', group ,'=====\n')
+        #print('=====', group ,'=====\n')
         items=[]
         # if : do one thing if not : do other
         itran=re.findall( r'(\w[\w\d\(\)\:]+)=',  group )   # not for elab(1)
         if ( len(itran)>0):
-            print( 'RANGE () ',itran )
+            #print( 'RANGE () ',itran )
             dic1={}
             dic2=[]
             for i in itran:  # i have identified te NAMES, now i get prams for each
@@ -179,10 +200,10 @@ class frespar:
             for i in dic1.keys():
                 a=dic2[ dic1[i] ]+len(i)+1 # without name and=
                 b=dic2[ dic1[i]+1 ] 
-                print('/',i, '/', group[a:b] )
-                self.DICT['FRESCO'][ i ]=group[a:b]
+                #print('/',i, '/', group[a:b] )
+                self.SECTION['FRESCO'][ i ]=group[a:b]
                 if isfloat(group[a:b]):
-                    self.DICT['FRESCO'][ i ]=float(group[a:b])
+                    self.SECTION['FRESCO'][ i ]=float(group[a:b])
 #                print('/',i, dic1[i],'.',  a, '-',  b , group[a:b])
 
 ##            print( 'itran3', itran[0][3] )
@@ -191,13 +212,14 @@ class frespar:
             #for i in range( int( itran[0][1] ),  int( itran[0][2] )+1  ):
                 #ip123=itran[0][0]+str( i )
                 ##print('i',i,  ip123 ,'=', items1[ii] )
-                #self.DICT['FRESCO'][ ip123 ]= float( items1[ii] )
+                #self.SECTION['FRESCO'][ ip123 ]= float( items1[ii] )
                 #ii=ii+1
 
 
 
-###################################
-#
+
+                
+###################################################################
 #
 # every section tries to decode its parameters;
 # 1/ POT  -    i need to breakdown  p1 p2 p3 p4 p5 p6 - WORKS
@@ -212,8 +234,10 @@ class frespar:
         #print('=====')
         # i added possibility a=...0.0
         #   and  elab(1)
-        if (  not secname in  self.DICT ):
-            self.DICT[secname]={}
+        if (  not secname in  self.SECTION ):
+            self.SECTION[secname]={}
+        else:
+            print('SEC', secname, 'exists:', self.SECTION[secname] )
         items=[]
         itemsbis=[]
         # if : do one thing if not : do other
@@ -226,11 +250,11 @@ class frespar:
             for i in range( int( itran[0][1] ),  int( itran[0][2] )+1  ):
                 ip123=itran[0][0]+str( i )
                 #print('i',i,  ip123 ,'=', items1[ii] )
-                self.DICT[secname][ ip123 ]= float( items1[ii] )
+                self.SECTION[secname][ ip123 ]= float( items1[ii] )
                 ii=ii+1
 
 #            print( 'items1', items1 )
-            #print( self.DICT )
+            #print( self.SECTION )
         items=re.findall( r'([\w\d\()\:]+)=\s*([\-\.\+\d\'\w]+)',  group )   #  for elab(1)
         #items=items + itemsbis
         
@@ -245,14 +269,14 @@ class frespar:
                     #print(i,'->',i1)
                     if ( isfloat( i1 ) ):        # isfloat means it is a number
                         if (  i[0] in self.integs ):
-                            self.DICT[secname][i[0]]=int( i1 )
+                            self.SECTION[secname][i[0]]=int( i1 )
                         else:
-                            self.DICT[secname][i[0]]=float( i1 )
+                            self.SECTION[secname][i[0]]=float( i1 )
                     else:
-                        self.DICT[secname][i[0]]=i1
+                        self.SECTION[secname][i[0]]=i1
         if (subsec!=''):
-            if (  not subsec in  self.DICT ):
-                self.DICT[secname][subsec]={}
+            if (  not subsec in  self.SECTION ):
+                self.SECTION[secname][subsec]={}
             for i in items:
 #                print('Q',i)
                 if (  not(':' in i[0] ) ):
@@ -262,29 +286,32 @@ class frespar:
                     #print(i,'->',i1)
                     if ( isfloat( i1 ) ):        # isfloat means it is a number
                         if (  i[0] in self.integs ):
-                            self.DICT[secname][subsec][i[0]]=int( i1 )
+                            self.SECTION[secname][subsec][i[0]]=int( i1 )
                         else:
-                            self.DICT[secname][subsec][i[0]]=float( i1 )
+                            self.SECTION[secname][subsec][i[0]]=float( i1 )
                     else:
-                        self.DICT[secname][subsec][i[0]]=i1
+                        self.SECTION[secname][subsec][i[0]]=i1
         return 0
 
 
 
 
-####################################################
+
+    
+
+#############################################################################
 #
 #
 #   helpers for  WRITE
 #
 #
-#
 ########################################################
 
 
-
-
     def decomtuples(self, dicti, nopat='xxxxxxxx'):
+        '''
+        Used in WRITE
+        '''
         #print('DECOM TUPLE',dicti)
         wrsec=''
         states={}
@@ -311,22 +338,12 @@ class frespar:
 
     def writesection(self, section , end=1 ):
         wrsec=''
-        if ( section in self.DICT):
-            #rsection=section
-            #print('WRITE',section)
+        if ( section in self.SECTION):
             rsection=re.sub( '[\d_]*$', '',section )   # remove pot1, cfp2 ...
-            #print(rsection)
-            #print( '&'+rsection, self.DICT[ section ] ) 
-#            wrsec='&'+rsection+ str( self.DICT[ section ] )
-######## i need to make 2 lines with POT.  1st line is Coulomb, 2nd is TYPE=x
-            #if (rsection == 'POT'):
-                #wrsec=wrsec+' &'+rsection+ self.decomtuples( self.DICT[section] , 'p\d')+'/ \n'
-            wrsec=wrsec+' &'+rsection+ self.decomtuples( self.DICT[section]  )
+            wrsec=wrsec+' &'+rsection+ self.decomtuples( self.SECTION[section]  )
             if (end==1):
-                #print( '&'+rsection,'/')
                 wrsec=wrsec + '\n &'+rsection+' / \n'
             else:
-                #print('/')
                 wrsec=wrsec + ' /\n'
             return wrsec
         else:
@@ -334,14 +351,13 @@ class frespar:
 
 
 
-    def writeinput(self, filename ):
+    def writeinput(self, filename ,silent=True ):
         self.lastinput=filename
         wrfi=self.LABEL+'\n'
         wrfi=wrfi+'NAMELIST\n'
         wrfi=wrfi+self.writesection('FRESCO')
         for i in range(9):
             wrfi=wrfi+self.writesection('PARTITION'+str(i) ,0 )
-            #wrfi=wrfi+self.writesection('STATES'+str(i) ,0 )
         wrfi=wrfi+' &PARTITION /\n'
         for i in range(9):
             for j in range(9):
@@ -355,12 +371,21 @@ class frespar:
             wrfi=wrfi+self.writesection('CFP'+str(i), 0)
         wrfi=wrfi+' &CFP /\n'
         wrfi=wrfi+' &Coupling /\n'
-        realPath = os.path.realpath(__file__) 
-        print( 'i... going to write to', filename,'at',  os.getcwd()  )
+        realPath = os.path.realpath(__file__)
+        if not silent:
+            print( 'i... going to write to', filename,'at',  os.getcwd()  )
         with open(  filename , 'w') as fout:
             fout.write(wrfi);
+        if not silent:
+            print('--------WRITTEN FILE FROM MEMORY--------------------------------------')
+            for i in sorted(self.SECTION.keys()):
+                print(i, self.SECTION[i] )
+            print('--------OK -----------------------------------------------------------')
+          
 
 
+
+            
 ####################################################
 #
 #
@@ -368,13 +393,14 @@ class frespar:
 #
 ###########################################################
 
-    def run(self,  inputfile='' ):
+    def run(self,  inputfile='' , silent=True ):
         frescopath= os.path.dirname( os.path.abspath(__file__) )
 #        print("FREPATH=", frescopath, 'current is ',os.getcwd())
         fname=inputfile
         if ( len(fname)==0):
             fname=self.lastinput
-        print('i... trying to run with',fname)
+        if not silent:
+            print('i... trying to run with',fname)
         self.lastinput=fname
         ######################## BINARIES ##
         runpath=frescopath+'/fresco_binaries/'
@@ -383,7 +409,8 @@ class frespar:
         runok=0
         for file in os.listdir( runpath ):
             if (file==runname):
-                print('+...',runname,'found at ',runpath)
+                if not silent:
+                    print('+...',runname,'found at ',runpath)
                 runok=1
         if runok==0:
             print("!...",runname,'not found at',runpath)
@@ -402,23 +429,32 @@ class frespar:
         inputok=0
         for file in os.listdir(os.getcwd()):
             if (file==fname):
-                print('+...inputfile=',fname,'found at ',os.getcwd())
+                if not silent:
+                    print('+...inputfile=',fname,'found at ',os.getcwd())
                 inputok=1
         if inputok==0:
             print("!... sorry, inputfile=",fname,"not found at ",os.getcwd())
             return -1
         CMD=runpath+'/'+runname+' '+ fname
-        print('i... running ',CMD)
+        if not silent:
+            print('i... running ',CMD)
         pf=subprocess.Popen(CMD.split(),stdout=subprocess.PIPE )
         while pf.poll() is None:
             l = pf.stdout.readline() # This blocks until it receives a newline.
-            print('  ',l.rstrip().decode('utf-8') )
+            if not silent:
+                print('  ',l.rstrip().decode('utf-8') )
             # When the subprocess terminates there might be unconsumed output 
             # that still needs to be processed.
-        print( pf.stdout.read().rstrip().decode('utf-8') )
-        print("X... exiting fresco .run")
+        if not silent:
+            print( pf.stdout.read().rstrip().decode('utf-8') )
+            print("X... exiting fresco .run")
 #        if (os.system(CMD) ):
 #            print('!... Error with',CMD)
+
+
+
+
+
 
 
 ###################################################
@@ -433,15 +469,22 @@ class frespar:
 #####################################################
 
 
-
-
     def readout(self, keyword='----------',  filename=''  ):
+        '''
+        I read  -  input.out  file by default
+        the outgoing projectile of the partition
+            and only the line given by PARTITION1 namep; projectile name
+            with string: CROSS SECTIONS FOR OUTGOING
+        It is ok for Rutherford.
+        '''
         print('extract XS PARTITION', keyword)
         fname=filename
         if (len(fname)==0):
             fname=self.lastinput  # CRAZY_GETS .ipn file
             fname=fname.replace( '.inp', '.out')
-            print('... Trying to read ', fname)
+            print('i... trying to blindly read assumed output file: /', fname,'/')
+        else:
+            print('i... reading file: /', fname,'/')
         ang=[]
         val=[]
         ang2=[]
@@ -456,19 +499,18 @@ class frespar:
                         if isfloat(g[0]):
                             energies.append(  float(g[0])  )
         f.close()
-        print('Energies:', energies,'MeV')
+        print('i... detected energies during read:', energies,'MeV')
         with open( fname ) as f:  # I will parse by PARTITION
             for i in f:
                 #print('kuku:', i.rstrip()  )
                 if ((  'CROSS SECTIONS FOR OUTGOING' in i  ) and (keyword.strip("'") in i ) ):  # FIND IT
-                    print('JUK :', i.rstrip()  )
+                    #print('JUK :', i.rstrip()  )
                     f.readline()
         #            f.readline()
                     break
             for i in f:
                 if (( 'Finished' in i ) or ( len(i.strip() )==0 ) or ( 'CROSS SECTIONS FOR OUTGOING 'in i )):  ## FINISH
                     break
-                #print('NEXT:', i.rstrip() )
                 rg=re.findall( r'([\d\.]+) deg.: X-S =\s+([\d\.\+\-E]+) ', i.rstrip() )
                 if (len(rg)>0):
                     ang.append(rg[0][0] ) # i want one occurence =[0] with two values=in tuple
@@ -534,6 +576,9 @@ class frespar:
 #####################################################
 
     def dataread(self,  filename ):
+        '''
+         nothing?   angle value dvalue
+        '''
         an=[]
         val=[]
         dval=[]

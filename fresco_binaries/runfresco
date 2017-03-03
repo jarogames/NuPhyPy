@@ -124,7 +124,14 @@ fi
 check_input $1
 
 
- wine `which fresco-winxp.exe` < $1 > $OUT
+wine `which fresco-winxp.exe` < $1 > $OUT
+grep -i error $OUT
+if [ "$?" = "0" ]; then
+    echo "!... TRY TO REPAIR THE ABOVE ERRORS ======================"
+    exit
+fi
+
+
 ##### wine /home/mrazek/00_central/Fresco/81_xfresco_20/xfresco-2.2/bin/fresco-winxp.exe < $1 > $OUT
 echo  Fresco execution ended. recommendations:
 grep Recommend $OUT

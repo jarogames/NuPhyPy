@@ -3,3 +3,13 @@
 __*
 *__*
 test/*
+OldStuff/*
+\#*\#
+TRANS*.txt
+RANG*txt
+*.log
+.run_trim.lastname
+ReadNubase.py.badspaces
+rundir.full/
+SRIM-2013-Pro.e
+SRIM-2013-Std.e
