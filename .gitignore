@@ -13,3 +13,5 @@ ReadNubase.py.badspaces
 rundir.full/
 SRIM-2013-Pro.e
 SRIM-2013-Std.e
+prepfiles.py
+prereq/*
