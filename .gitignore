@@ -1,7 +1,6 @@
 .ipynb_check*
 *~
-__*
-*__*
+__pycache*
 test/*
 OldStuff/*
 \#*\#
