@@ -16,6 +16,22 @@ def read(fname):
 ################# install from git repo #############
 #
 # pip install git+git://github.com/jarogames/testpyrepo@master
+
+
+import os
+
+def package_files(directory):
+    paths = []
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            paths.append(os.path.join('..', path, filename))
+    return paths
+
+extra_files = package_files('NuPhyPy/')
+
+
+
+
 setup(
     name = "NuPhyPy",
     version = "0.0.2",
@@ -27,10 +43,8 @@ setup(
     license = "GPLv2",
     keywords = "nuclear physics",
     url = "http://www.spiral2.cz",
-    packages=['NuPhyPy','NuPhyPy/db','NuPhyPy/Reactions','NuPhyPy/Spectra',
-              'NuPhyPy/srim',
-              'NuPhyPy/srim/srim_binary/','NuPhyPy/srim/srim_binary/rundir',
-              'NuPhyPy/fresco_binaries' ],
+    packages=['NuPhyPy'],
+    package_data={'':extra_files},
     long_description=read('README.md'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
