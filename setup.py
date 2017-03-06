@@ -36,7 +36,7 @@ extra_files = package_files('NuPhyPy/')
 
 setup(
     name = "NuPhyPy",
-    version = "0.0.2",
+    version = "0.0.3a",
     zip_safe= False,
     author = "jaromir mrazek",
     author_email = "jaromrax@gmail.com",
