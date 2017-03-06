@@ -27,7 +27,8 @@ setup(
     license = "GPLv2",
     keywords = "nuclear physics",
     url = "http://www.spiral2.cz",
-    packages=['NuPhyPy'],
+    packages=['NuPhyPy','NuPhyPy/db','NuPhyPy/Reactions',
+              'NuPhyPy/Spectra''NuPhyPy/srim','NuPhyPy/db', 'NuPhyPy/fresco_binaries' ],
     long_description=read('README.md'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
