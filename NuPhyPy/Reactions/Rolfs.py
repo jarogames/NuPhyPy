@@ -3,6 +3,9 @@ from math import pow, sqrt, exp
 
 # used only in other expressions   #  r in [cm]
 def CoulombPotential(Z1,Z2,r):
+    '''
+    Z1 Z2/r  ...  units  keV cm
+    '''
     e2=1.44e-10;  #keV cm
     return 1.0/r *Z1 * Z2 *e2;
 
