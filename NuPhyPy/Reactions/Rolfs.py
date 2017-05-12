@@ -11,12 +11,20 @@ def CoulombPotential(Z1,Z2,r):
 
 
 # used in   CoulAZ / CoulombBarrier //  r0 in [cm]
-def NuclearDistance(A1,Z1,A2,Z2, r0=1.3e-13): 
+def NuclearDistance(A1,Z1,A2,Z2, r0=1.3e-13):
+    '''
+    sum of the two nuclear radii by A^1/3
+    ...  units -  cm  if r0=1.3e-13 cm
+    '''
     return r0*pow(A1,0.3333) + r0*pow(A2,0.3333)
 
 
 # Barrier in keV        r in [cm]
 def CoulombBarrier(A1,Z1,A2,Z2, r0=1.3e-13):
+    '''
+    Coulomb potential at a closest distance of two nuclei
+    ... units  keV cm
+    '''
     e2=1.44e-10;  #//keV cm
     #//  double k= 8.617343E-11; //MeV
     k= 8.617343E-8; # //keV
@@ -28,7 +36,14 @@ def CoulombBarrier(A1,Z1,A2,Z2, r0=1.3e-13):
     print('   {:.4g} keV   {:.3f} T6'.format(EC, T/1e+6,'K' ) )
     return EC #; //in keV
 
+
+
 def Sommerfield(A1,Z1,A2,Z2,Ecmskev):
+    '''
+    Sommerfield factor e^(-2 pi nu), depends on Z1Z2, Ecm and reduced mass
+    just A1A2 here, not with mass excess
+    ... units  Ecm in keV
+    '''
     amu=A1*A2/(A1+A2)
     e2=1.44e-10   #  //keV cm//
     hbar=6.5821195e-16  #;   //  eV s
@@ -40,7 +55,13 @@ def Sommerfield(A1,Z1,A2,Z2,Ecmskev):
     print( '   2Pinu={}  P={:.4g} '.format(twopinu, P )  );
     return P
 
+
 def GamowEnergy(A1,Z1,A2,Z2,T6,Skevb):
+    '''
+     effective mean energy
+    ... temperature in T6
+    ... rate is calculated based on S in keVb 
+    '''
     #  T6 is temperature in T6 Kelvins
     #  AMU =   A1 * A2 / ( A1 + A2 )
     amu=A1*A2/(A1+A2)
