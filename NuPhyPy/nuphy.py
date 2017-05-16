@@ -56,6 +56,8 @@ parser.add_argument('-m','--material',   default="c12",help='SRIM')
 parser.add_argument('-n','--number',  default="100" , help='SRIM')
 parser.add_argument('-d','--density',  default="0" , help='SRIM')
 
+parser.add_argument('-s','--silent', action="store_true",   help='SRIM')
+
 #parser.add_argument('-t','--thickness',  default="4" , help='SRIM')
 args=parser.parse_args() 
 
@@ -117,8 +119,10 @@ if args.mode=='srim':
                             mater=material, thick=thick, dens=rho  )
 
     # RUN ############################
-    
-    tmpp=sr.run_srim(ipath, TRIMIN,  silent=False)
+    if args.silent:
+        tmpp=sr.run_srim(ipath, TRIMIN,  silent=True)
+    else:
+        tmpp=sr.run_srim(ipath, TRIMIN,  silent=False)
     print(tmpp[:5])
     print("R...    E mean +- std")
     print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
