@@ -93,11 +93,13 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False ):
     '''
     ############## CREATE TEMP #####################
     temppath = tempfile.mkdtemp(suffix='.srim')+'/'
-    if not silent: print('x... copying from',RPATH,'to',temppath)
+    if not silent: print('X... copying from',RPATH,'to',temppath)
     copy_tree( RPATH , temppath )
 #    os.chdir(temppath)
+    print( glob.glob("TRIM.exe")  )
     ####################### IN CD CONTEXT #############
     with cd(temppath):
+        print( glob.glob("TRIM.exe")  )
         for file in glob.glob("TRIM.exe"):
             if not silent: print('    : ',file)
         with open('TRIM.IN','w') as f:
@@ -106,10 +108,14 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False ):
         with open('TRIMAUTO','w') as f:
             f.write( TRIMAUTO )
             f.close()
-#################################################### PROCESS WITH WAIT ####    
-            process = subprocess.Popen('wine TRIM.exe'.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            output, error = process.communicate()
-
+        if not silent: print('i...   TRIM.IN  and TRIMAUTO written')
+#################################################### PROCESS WITH WAIT ####
+        print("############### VDISPLAY #########################")
+        vdisplay = Xvfb(width=1280, height=740, colordepth=16)
+        vdisplay.start()
+        process = subprocess.Popen('wine TRIM.exe'.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        output, error = process.communicate()
+        vdisplay.stop() #
 #################################################### PROCESS WITH WAIT ####
 
     
