@@ -110,12 +110,14 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False ):
             f.close()
         if not silent: print('i...   TRIM.IN  and TRIMAUTO written')
 #################################################### PROCESS WITH WAIT ####
-        print("############### VDISPLAY #########################")
-        vdisplay = Xvfb(width=1280, height=740, colordepth=16)
-        vdisplay.start()
+        if silent:
+            print("############### VDISPLAY #########################")
+            vdisplay = Xvfb(width=1280, height=740, colordepth=16)
+            vdisplay.start()
         process = subprocess.Popen('wine TRIM.exe'.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         output, error = process.communicate()
-        vdisplay.stop() #
+        if silent:
+            vdisplay.stop() #
 #################################################### PROCESS WITH WAIT ####
 
     
