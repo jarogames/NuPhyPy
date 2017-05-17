@@ -124,8 +124,8 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
         t.start()
         for i in range(5):
             destin=temppath+'/SRIM\ Outputs/TRANSMIT.txt'
-            output = subprocess.check_output('wc -l '+destin+' | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
-            print(output,'/',nmax)
+            output = subprocess.check_output('wc -l '+destin+' 2>/dev/null | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
+            print(output,'/',nmax,'        ', end='\r')
             time.sleep(1)
             if not t.isAlive(): break
         t.join()

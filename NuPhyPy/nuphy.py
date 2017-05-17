@@ -139,7 +139,7 @@ if args.mode=='srim':
     store = pd.HDFStore('store.h5')
     print(store)
     fname='{}_in_{}_w{}_r{}_e{}_n{}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, args.density, args.energy,  args.number, mean )
-    fname.replace('.','_')
+    fname=fname.replace('.','_')
     store[fname] = tmpp
     print(store)
     store.close()
