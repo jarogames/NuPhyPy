@@ -134,9 +134,16 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
         for i in range(84500):
             destin=temppath+'/SRIM\ Outputs/TRANSMIT.txt'
             output = subprocess.check_output('wc -l '+destin+' 2>/dev/null | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
-            sys.stdout.write("[%s]" % ("#" * int(toolbar_width/nmax*output)   ))
-            print(output,'/',nmax,'        ', end='\r')
-            time.sleep(1)
+            output=int(output)
+            ratio=output/nmax
+            if ratio>1.0:ratio=1.0
+            toolfull=int(toolbar_width*ratio)
+            time.sleep(1)bar1="[%s" % ("#" * toolfull   )
+            bar2="%s]%d/%d" % (" " * (toolbar_width-toolfull+0), output,nmax  )
+            bar=bar1+bar2
+            sys.stdout.write("\b" * (len(bar)+1)) # return to start a    
+            sys.stdout.write(bar)
+            sys.stdout.flush()
             if not t.isAlive(): break
         ###========================>    
         t.join()
