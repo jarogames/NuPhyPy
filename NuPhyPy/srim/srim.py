@@ -11,6 +11,9 @@ from xvfbwrapper import Xvfb  # invisible RUN
 
 import threading
 import time
+import sys
+#####from tqdm import *
+
 #######3https://web-docs.gsi.de/~weick/atima/
 
 TRIMAUTO="""1
@@ -122,12 +125,20 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
             return
         t=threading.Thread(target=worker)
         t.start()
+        ###====>
+        toolbar_width = 40
+        sys.stdout.write("[%s]" % (" " * toolbar_width))
+        sys.stdout.flush()
+        sys.stdout.write("\b" * (toolbar_width+1)) # return to start after '['
+
         for i in range(84500):
             destin=temppath+'/SRIM\ Outputs/TRANSMIT.txt'
             output = subprocess.check_output('wc -l '+destin+' 2>/dev/null | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
+            sys.stdout.write("[%s]" % ("#" * int(toolbar_width/nmax*output)   ))
             print(output,'/',nmax,'        ', end='\r')
             time.sleep(1)
             if not t.isAlive(): break
+        ###========================>    
         t.join()
         
         if silent:
