@@ -30,6 +30,17 @@ This feature is controlled by the number in line #1 (above).
 See the file TRIMAUTO.TXT for more details.
 """;
 
+
+def isjupyter():
+    '''
+    isjupyter recognizes if run from Jupyter / IPython
+    '''
+    try:
+        __IPYTHON__
+        return True
+    except:
+        return False
+
 ###################################
 #  this part should return to CUR DIR
 #   after the context ends...
@@ -89,7 +100,7 @@ def srim_readout(temppath):
         
             
 
-def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
+def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=1 ):
     '''
     This creates and environment in /tmp 
     where TRIM.exe can be run
@@ -114,6 +125,7 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
             f.write( TRIMAUTO )
             f.close()
         if not silent: print('i...   TRIM.IN  and TRIMAUTO written')
+        if isjupyter: silent=True #### PROBLEM with X in Jupyter?
 #################################################### PROCESS WITH WAIT ####
         if silent:
             print("############### VDISPLAY #########################start")
