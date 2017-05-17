@@ -138,7 +138,8 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
             ratio=output/nmax
             if ratio>1.0:ratio=1.0
             toolfull=int(toolbar_width*ratio)
-            time.sleep(1)bar1="[%s" % ("#" * toolfull   )
+            time.sleep(1)
+            bar1="[%s" % ("#" * toolfull   )
             bar2="%s]%d/%d" % (" " * (toolbar_width-toolfull+0), output,nmax  )
             bar=bar1+bar2
             sys.stdout.write("\b" * (len(bar)+1)) # return to start a    
