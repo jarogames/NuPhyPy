@@ -10,6 +10,7 @@ from contextlib import contextmanager       # for CD with context
 from xvfbwrapper import Xvfb  # invisible RUN
 
 import threading
+import time
 #######3https://web-docs.gsi.de/~weick/atima/
 
 TRIMAUTO="""1
@@ -122,10 +123,11 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
         t=threading.Thread(target=worker)
         t.start()
         for i in range(5):
-            destin=temppath+'/SRIM\ Output/TRANSMITED.txt'
+            destin=temppath+'/SRIM\ Outputs/TRANSMIT.txt'
             output = subprocess.check_output('wc -l '+destin+' | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
             print(output,'/',nmax)
             time.sleep(1)
+            if not t.isAlive(): break
         t.join()
         
         if silent:
