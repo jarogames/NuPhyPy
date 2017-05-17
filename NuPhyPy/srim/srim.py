@@ -154,6 +154,7 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
         
         if silent:
             vdisplay.stop() #
+            print()
             print("############### VDISPLAY #########################stop")
 #################################################### PROCESS WITH WAIT ####
 
