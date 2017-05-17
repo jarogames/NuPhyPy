@@ -134,7 +134,10 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
         for i in range(84500):
             destin=temppath+'/SRIM\ Outputs/TRANSMIT.txt'
             output = subprocess.check_output('wc -l '+destin+' 2>/dev/null | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
-            output=int(output)
+            try:
+                output=int(output)
+            except:
+                output=0
             ratio=output/nmax
             if ratio>1.0:ratio=1.0
             toolfull=int(toolbar_width*ratio)
