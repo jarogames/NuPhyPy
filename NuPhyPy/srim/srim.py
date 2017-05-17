@@ -96,10 +96,10 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False ):
     if not silent: print('X... copying from',RPATH,'to',temppath)
     copy_tree( RPATH , temppath )
 #    os.chdir(temppath)
-    print( glob.glob("TRIM.exe")  )
+    #print('D...', glob.glob("TRIM.exe")  )
     ####################### IN CD CONTEXT #############
     with cd(temppath):
-        print( glob.glob("TRIM.exe")  )
+        #print('D...',glob.glob("TRIM.exe")  )
         for file in glob.glob("TRIM.exe"):
             if not silent: print('    : ',file)
         with open('TRIM.IN','w') as f:
@@ -226,7 +226,7 @@ def proj( ion, energy, angle, number , seed=765):
          'ne20':[ 10, 19.992440,  1.0   ] }
 
     if ion.namesrim in pro:
-        print(ion.namesrim, '... PROJECTILE ALREADY DEFINED',pro[ion.namesrim])
+        print('?...',ion.namesrim, '... PROJECTILE ALREADY DEFINED',pro[ion.namesrim])
     else:
         print(ion.namesrim,'not defined, I am defining it now')
         pro[ion.namesrim]=[ ion.Z, ion. amu, 1.0 ]    ## Bragg Corr i set to 1.0/C+C,h1+c,he4+c,
@@ -609,7 +609,7 @@ def targ(  name, thick,   ion,  dens=0.0  ):
 
     isgas=-1
     if name in mat:
-        print(name, '... MAT IS KNOWN AND DEFINED',mat[name])
+        print('?...',name, '... MAT IS KNOWN AND DEFINED',mat[name])
         # THIS CAN HAPPEN ONLY FOR COMPOUNDS NOW....................
     else:
         print('?...',name,'MAT NOT defined ... ')

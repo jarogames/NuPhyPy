@@ -132,8 +132,15 @@ if args.mode=='srim':
     print( "{:.3f} MeV (median {:.3f}) +- {:.3f}  hi-lo={:.3f}  Eloss={:.3} MeV".format( mean, median,  sigma , deint ,  Eini-mean)   )
     #print( tmpp['e'].max(),tmpp['e'].min(), de  )
     #plt.hist( tmpp['e'], 20 , facecolor='red', alpha=0.25)
-#    print("R...    E mean +- std")
-#    print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
- #   print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
+    #    print("R...    E mean +- std")
+    #    print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
+    #   print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
+
+    store = pd.HDFStore('store.h5')
+    print(store)
+    fname='{}_in_{}_w{}_r{}_e{}_n{}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, args.density, args.energy,  args.number, mean )
+    store[fname] = tmpp
+    print(store)
+    store.close()
 
     
