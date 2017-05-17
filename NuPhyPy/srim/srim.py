@@ -126,7 +126,7 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
         t=threading.Thread(target=worker)
         t.start()
         ###====>
-        toolbar_width = 40
+        toolbar_width = 50
         sys.stdout.write("[%s]" % (" " * toolbar_width))
         sys.stdout.flush()
         sys.stdout.write("\b" * (toolbar_width+1)) # return to start after '['
