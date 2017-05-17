@@ -612,17 +612,17 @@ def targ(  name, thick,   ion,  dens=0.0  ):
         print(name, '... MAT IS KNOWN AND DEFINED',mat[name])
         # THIS CAN HAPPEN ONLY FOR COMPOUNDS NOW....................
     else:
-        print(name,'MAT NOT defined ... ')
+        print('?...',name,'MAT NOT defined ... ')
         from NuPhyPy.db.ReadNubase import gas,densities,elements,molarweights
         if name.title() in elements:
-            print(name.title(),'ELEMENT detected ... ')
+            print('+...',name.title(),'ELEMENT detected ... ')
             eZ=elements.index(name.title())
             isgas=gas[ eZ ]
             heatsu= heatsubl[eZ]
             #if isgas==1: heatsu=0.0
             mat[name]=[ eZ,molarweights[eZ], 1., indivdisp[eZ], lattdisp[eZ], heatsu ]
         else:
-            print(name,'Isotope detected ... ')
+            print('+...',name,'Isotope detected ... ')
             import NuPhyPy.db.ReadNubase as db
             isotope=db.isotope( name )
             eZ=isotope.Z
@@ -631,7 +631,7 @@ def targ(  name, thick,   ion,  dens=0.0  ):
             #if isgas==1: heatsu=0.0
             mat[name]=[ eZ, isotope.amu,  1., indivdisp[eZ], lattdisp[eZ],  heatsu ] 
 
-        print(name, 'MAT ... ',mat[name], ' is gas==',isgas)
+        print('i...',name, 'MAT ... ',mat[name], ' is gas==',isgas)
         #print('!... ============= not correct ====== VERIFY INPUT in SRIM!')
 
     

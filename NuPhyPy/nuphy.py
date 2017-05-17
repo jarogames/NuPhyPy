@@ -69,8 +69,8 @@ if args.mode=='react':
     nu2=db.isotope( ip[1] )
     nu3=db.isotope( op[0] )
     if len(op)==1:
-        print( nu1.A +  nu2.A - nu3.A )
-        print( nu1.Z +  nu2.Z - nu3.Z )
+        print( 'i...',nu1.A +  nu2.A - nu3.A )
+        print('i...', nu1.Z +  nu2.Z - nu3.Z )
         nu4=db.isotope( nu1.A +  nu2.A - nu3.A, nu1.Z +  nu2.Z - nu3.Z )   
     else:
         nu4=db.isotope( op[1] )
@@ -80,7 +80,7 @@ if args.mode=='react':
 
 ###############################################################  SRIM    
 if args.mode=='srim':
-    print(args.mode)
+    print('i...',args.mode)
     ipath=sr.CheckSrimFiles()
         
     n0=db.isotope(args.incomming )
@@ -95,15 +95,15 @@ if args.mode=='srim':
     thick=args.thickness
     thickok=False
     if thick.find('ug')>0:
-        print('ug/cm2')
+        print('D... ug/cm2')
         thick=float(thick.split('ug')[0])/1000
         thickok=True
     elif thick.find('mg')>0:
-        print('mg/cm2')
+        print('D... mg/cm2')
         thick=float( thick.split('mg')[0] )
         thickok=True
     elif thick.find('um')>0:
-        print('um ! I need rho')
+        print('!... um ! I need rho')
         thick=float(thick.split('um')[0])
         mgcm2=sr.get_mgcm2( thick,  rho ) # um in, mgcm2 out
         thickok=True
@@ -111,9 +111,9 @@ if args.mode=='srim':
     if not(thickok):
         print('!...  thicknesses must be in ug,mg or um')
         quit()
-    print(material,'thickness',thick,'mg/cm2','for rho=',rho)
+    print('i...',material,'thickness',thick,'mg/cm2','for rho=',rho)
     #    print( material_density(material) )
-    print(thick)
+    #print('D...',thick)
 
     TRIMIN=sr.PrepSrimFile( ion=n0, energy=Eini, angle=0., number=number ,
                             mater=material, thick=thick, dens=rho  )
@@ -124,7 +124,16 @@ if args.mode=='srim':
     else:
         tmpp=sr.run_srim(ipath, TRIMIN,  silent=False)
     print(tmpp[:5])
-    print("R...    E mean +- std")
-    print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
+    deint=tmpp['e'].max()-tmpp['e'].min()
+    sigma=tmpp['e'].std()
+    mean=tmpp['e'].mean()
+    median=tmpp['e'].median()
+    print()
+    print( "{:.3f} MeV (median {:.3f}) +- {:.3f}  hi-lo={:.3f}  Eloss={:.3} MeV".format( mean, median,  sigma , deint ,  Eini-mean)   )
+    #print( tmpp['e'].max(),tmpp['e'].min(), de  )
+    #plt.hist( tmpp['e'], 20 , facecolor='red', alpha=0.25)
+#    print("R...    E mean +- std")
+#    print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
+ #   print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
 
     
