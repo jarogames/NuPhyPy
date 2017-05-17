@@ -57,6 +57,7 @@ parser.add_argument('-n','--number',  default="100" , help='SRIM')
 parser.add_argument('-d','--density',  default="0" , help='SRIM')
 
 parser.add_argument('-s','--silent', action="store_true",   help='SRIM')
+parser.add_argument('-S','--Store', default="",   help='SRIM')
 
 #parser.add_argument('-t','--thickness',  default="4" , help='SRIM')
 args=parser.parse_args() 
@@ -120,9 +121,9 @@ if args.mode=='srim':
 
     # RUN ############################
     if args.silent:
-        tmpp=sr.run_srim(ipath, TRIMIN,  silent=True)
+        tmpp=sr.run_srim(ipath, TRIMIN,  silent=True, nmax=number)
     else:
-        tmpp=sr.run_srim(ipath, TRIMIN,  silent=False)
+        tmpp=sr.run_srim(ipath, TRIMIN,  silent=False, nmax=number)
     print(tmpp[-5:])
     deint=tmpp['e'].max()-tmpp['e'].min()
     sigma=tmpp['e'].std()
@@ -136,12 +137,13 @@ if args.mode=='srim':
     #    print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
     #   print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
 
-    store = pd.HDFStore('store.h5')
-    print(store)
-    fname='{}_in_{}_w{}_r{}_e{}_n{}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, args.density, args.energy,  args.number, mean )
-    fname=fname.replace('.','_')
-    store[fname] = tmpp
-    print(store)
-    store.close()
+    if args.Store!="":
+        store = pd.HDFStore( args.Store+'.h5')
+        #print(store)
+        fname='{}_in_{}_w{}_r{}_e{}_n{}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, args.density, args.energy,  args.number, mean )
+        fname=fname.replace('.','_')
+        store[fname] = tmpp
+        print(store)
+        store.close()
 
     
