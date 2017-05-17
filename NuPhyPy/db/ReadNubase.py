@@ -115,7 +115,7 @@ class isotope:
                         with open(databasepath+'/nubase.mas12') as f:
                                 masstable=f.read()
                                 masslist=masstable.split('\n')
-                        print('masses loaded ... ', len(masslist),'lines')
+                        print('i... masses loaded ... ', len(masslist),'lines')
                         for li in masslist:
                                 if (len(li)>0):
                                         #print( li,  int(li[0:3]), int(li[4:7]) ,  )
@@ -138,7 +138,7 @@ class isotope:
                                 self.Z= elements.index( zname )
                                 #print(self.Z)
                         except:
-                                print('no such element like', zname)
+                                print('!... no such element like', zname)
                                 self.Z=-1
                         namm=re.search(r"([\d]+)",   A )
                         #print( A, 'exctracted A:  ', namm.group(1) )
@@ -159,7 +159,7 @@ class isotope:
                         self.Z=Z
                         #print('Z=',Z,' is element',elements[Z])
                 if (self.A>=massnp.shape[0]) or (self.Z>=massnp.shape[1]):
-                        print('No isotope',A,Z)
+                        print('!... No isotope',A,Z)
                         return None
                 A=self.A  # be sure to use int from now
                 Z=self.Z
@@ -275,7 +275,7 @@ class isotope:
                 else:
                         return None
                 self.isodensity=densities[Z]/molarweights[Z]*self.amu
-                print(' ... ',self.name,'(',A,Z,')', self.isodensity,'g/cm3',densities[Z],'g/cm3',molarweights[Z],'g/mol')
+                print('=... ',self.name,'(',A,Z,')', self.isodensity,'g/cm3',densities[Z],'g/cm3',molarweights[Z],'g/mol')
                 if len(gas)==0:
                         for i in densities:
                                 if i>0.1:
