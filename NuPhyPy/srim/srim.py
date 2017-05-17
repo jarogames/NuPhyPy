@@ -84,7 +84,7 @@ def srim_readout(temppath):
         
             
 
-def run_srim(RPATH, TRIMIN , strip=True, silent=False ):
+def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=0 ):
     '''
     This creates and environment in /tmp 
     where TRIM.exe can be run
@@ -111,13 +111,25 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False ):
         if not silent: print('i...   TRIM.IN  and TRIMAUTO written')
 #################################################### PROCESS WITH WAIT ####
         if silent:
-            print("############### VDISPLAY #########################")
+            print("############### VDISPLAY #########################start")
             vdisplay = Xvfb(width=1280, height=740, colordepth=16)
             vdisplay.start()
-        process = subprocess.Popen('wine TRIM.exe'.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        output, error = process.communicate()
+        def worker():
+            process = subprocess.Popen('wine TRIM.exe'.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            output, error = process.communicate()
+            return
+        t=threading.Thread(target=worker)
+        t.start()
+        for i in range(5):
+            destin=temppath+'/SRIM\ Output/TRANSMITED.txt'
+            output = subprocess.check_output('wc -l '+destin+' | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
+            print(output,'/',nmax)
+            time.sleep(1)
+        t.join()
+        
         if silent:
             vdisplay.stop() #
+            print("############### VDISPLAY #########################stop")
 #################################################### PROCESS WITH WAIT ####
 
     
