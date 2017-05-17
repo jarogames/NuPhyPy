@@ -9,6 +9,7 @@ import subprocess
 from contextlib import contextmanager       # for CD with context
 from xvfbwrapper import Xvfb  # invisible RUN
 
+import threading
 #######3https://web-docs.gsi.de/~weick/atima/
 
 TRIMAUTO="""1
