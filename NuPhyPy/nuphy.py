@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-print('You entered NuPhy.py, merger of calc and srimbuster');
+#print('You entered NuPhy.py, merger of calc and srimbuster');
 print('---------------------------------------------------');
 
 #http://stackoverflow.com/questions/7427101/dead-simple-argparse-example-wanted-1-argument-3-results
@@ -50,19 +50,19 @@ def material_density( matnam ):
 #################### PARSE 
 parser=argparse.ArgumentParser(description='NuPhy.py');
 
-parser.add_argument('mode' )
+parser.add_argument('mode' ,help='react; srim; store ')
 parser.add_argument('-i','--incomming',  default="h2,c12" , help='REACT')
 parser.add_argument('-o','--outgoing',  default="h2,c12"  , help='REACT')
-parser.add_argument('-a','--angle',  default="15" , help='REACT')
+parser.add_argument('-a','--angle',  default=0 , help='REACT')
 
-parser.add_argument('-e','--energy', required=True , help='REACT/SRIM')
+parser.add_argument('-e','--energy', default=5.804 , help='REACT/SRIM')
 
-parser.add_argument('-t','--thickness',  default="4" , help='SRIM')
+parser.add_argument('-t','--thickness',  default="100ug" , help='SRIM')
 parser.add_argument('-m','--material',   default="c12",help='SRIM')
-parser.add_argument('-n','--number',  default="100" , help='SRIM')
-parser.add_argument('-d','--density',  default="0" , help='SRIM')
-parser.add_argument('-P','--Pressure',  default="1013.25e+3" ,type=float, help='SRIM')
-parser.add_argument('-T','--Temperature',  default="273.15" , type=float,help='SRIM')
+parser.add_argument('-n','--number',  default=100 , help='SRIM')
+parser.add_argument('-d','--density',  default=0 , help='SRIM')
+parser.add_argument('-P','--Pressure',  default=1013.25e+3 ,type=float, help='SRIM')
+parser.add_argument('-T','--Temperature',  default=273.15 , type=float,help='SRIM')
 
 parser.add_argument('-s','--silent', action="store_true",   help='SRIM')
 parser.add_argument('-S','--Store', default="",   help='SRIM')
@@ -171,10 +171,33 @@ if args.mode=='srim':
         else:
             pt=""
             
-        fname='{}_in_{:_<6s}_w{:_<6s}_r{:3.1f}_{}_e{:5.3f}_n{:04d}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, float(args.density), pt,float(args.energy),  int(args.number), mean )
+        fname='{}_in_{:_<6s}_w{:_<6s}_r{:3.1f}_{}_n{:04d}_e{:5.3f}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, float(args.density), pt, int(args.number), float(args.energy), mean )
         fname=fname.replace('.','_')
         store[fname] = tmpp
         print(store)
         store.close()
 
     
+
+###############################################################  STORE
+if args.mode=='store':
+    import matplotlib.pyplot as plt
+    if args.Store!="":
+        stor=args.Store.split(',')
+        store = pd.HDFStore( stor[0] )
+        if len(stor)>1:
+            plots=[]
+            for inx in range( len(stor)-1 ):
+                dfname=sorted(store.keys())[ int(stor[inx+1])]
+                print('o... openning: ', dfname )
+                df=store[dfname]
+                print(df['e'].mean() )
+                plt.hist( df['e'], 20, ec='k',alpha=0.3,label=dfname) 
+            plt.legend( loc=4 , fontsize="x-small" )
+            plt.show()
+        else:
+            for i,v in enumerate(sorted(store.keys())):print("{:03d} {}".format(i,v) )
+        
+        store.close()
+    else:
+        print('!... filename missing: use -S; open an item by specifying  line number after comma')
