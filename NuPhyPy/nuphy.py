@@ -19,13 +19,19 @@ from NuPhyPy.db.ReadNubase import gas,densities,elements
 #import NuPhyPy.db.ReadNubase as db
 #from NuPhyPy.db.ReadNubase import gas,densities,elements
 
-
+import NuPhyPy.srim.compounds as srcomp
 
 def material_density( matnam ):
-    print('i... testing if ',matnam,'is in elements ')
-    if matnam.title() in elements:
+    print('i... testing if ',matnam,'is in compounds ')
+    #print( 'D...  keys=',srcomp.material_text.keys()  )
+    if matnam.title() in srcomp.material_text.keys():
+        print('i... FOUND in compounds')
+        dens=srcomp.get_density( matnam.title()  )
+        print('D... density from compounds=',dens)
+    elif matnam.title() in elements: 
+        print('i... testing if ',matnam,'is in elements ')
         CC=matnam.title()
-        print(CC,type(CC))
+        #print(CC,type(CC))
         zzz=elements.index(  matnam.title() )
         #print(zzz)
         dens=densities[ elements.index( matnam.title() ) ]
@@ -55,6 +61,8 @@ parser.add_argument('-t','--thickness',  default="4" , help='SRIM')
 parser.add_argument('-m','--material',   default="c12",help='SRIM')
 parser.add_argument('-n','--number',  default="100" , help='SRIM')
 parser.add_argument('-d','--density',  default="0" , help='SRIM')
+parser.add_argument('-P','--Pressure',  default="1013.25e+3" ,type=float, help='SRIM')
+parser.add_argument('-T','--Temperature',  default="273.15" , type=float,help='SRIM')
 
 parser.add_argument('-s','--silent', action="store_true",   help='SRIM')
 parser.add_argument('-S','--Store', default="",   help='SRIM')
@@ -88,31 +96,49 @@ if args.mode=='srim':
     material=args.material
     Eini=float( args.energy )
     number=int(args.number)
-
-    ##### MY UNIT WILL BE mg/cm2
     rho=float(args.density)
+
+    if material.title() in srcomp.material_gas:
+        """
+        trim assumes the target as STP before 1982
+        T=273.15 K
+        p=1013.25 kPa
+        SRIMHelp/helpTR23.rtf
+        """
+        rho=material_density(material)
+        R=1013.25e+3/273.15/rho
+        rho2=args.Pressure/R/args.Temperature
+        print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
+        rho=rho2
+
+    
+    ##### MY UNIT WILL BE mg/cm2
     if rho==0:
         rho=material_density(material)
     thick=args.thickness
     thickok=False
     if thick.find('ug')>0:
-        print('D... ug/cm2')
+        #print('D... ug/cm2')
         thick=float(thick.split('ug')[0])/1000
         thickok=True
     elif thick.find('mg')>0:
-        print('D... mg/cm2')
+        #print('D... mg/cm2')
         thick=float( thick.split('mg')[0] )
         thickok=True
     elif thick.find('um')>0:
-        print('!... um ! I need rho')
+        print('!... um ! I need rho=',rho)
         thick=float(thick.split('um')[0])
         mgcm2=sr.get_mgcm2( thick,  rho ) # um in, mgcm2 out
         thickok=True
-        quit()
+        #thick=sr.get_um( thick,rho )
+        thick=mgcm2
+        #quit()
     if not(thickok):
         print('!...  thicknesses must be in ug,mg or um')
         quit()
-    print('i...',material,'thickness',thick,'mg/cm2','for rho=',rho)
+    print('i...',material,'thickness',thick,'mg/cm2','for rho=',rho,
+          '...', 1000*thick/rho/1e-2  ,'A  ',
+           1000*thick/rho/1e+2,'um')
     #    print( material_density(material) )
     #print('D...',thick)
 
@@ -138,9 +164,14 @@ if args.mode=='srim':
     #   print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
 
     if args.Store!="":
-        store = pd.HDFStore( args.Store+'.h5')
+        store = pd.HDFStore( args.Store )
         #print(store)
-        fname='{}_in_{}_w{}_r{}_e{}_n{}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, args.density, args.energy,  args.number, mean )
+        if material.title() in srcomp.material_gas:
+            pt='P{}_T{}'.format( args.Pressure, args.Temperature )
+        else:
+            pt=""
+            
+        fname='{}_in_{:_<6s}_w{:_<6s}_r{:3.1f}_{}_e{:5.3f}_n{:04d}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, float(args.density), pt,float(args.energy),  int(args.number), mean )
         fname=fname.replace('.','_')
         store[fname] = tmpp
         print(store)

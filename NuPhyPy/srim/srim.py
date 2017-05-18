@@ -9,9 +9,18 @@ import subprocess
 from contextlib import contextmanager       # for CD with context
 from xvfbwrapper import Xvfb  # invisible RUN
 
+#from NuPhyPy.db.ReadNubase import gas,densities,elements
+from NuPhyPy.db.ReadNubase import gas,densities,elements,molarweights
+import NuPhyPy.db.ReadNubase as db
+#from NuPhyPy.db.ReadNubase import gas,densities,elements
+
+
 import threading
 import time
 import sys
+#import compounds
+import NuPhyPy.srim.compounds as srcomp
+
 #####from tqdm import *
 
 #######3https://web-docs.gsi.de/~weick/atima/
@@ -32,6 +41,16 @@ See the file TRIMAUTO.TXT for more details.
 
 
 def isjupyter():
+    #print('D... checking JUPYTER')
+#def in_ipynb():
+#    try:
+#        cfg = get_ipython().config 
+#        if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
+#            return True
+#        else:
+#            return False
+#    except NameError:
+#        return False
     '''
     isjupyter recognizes if run from Jupyter / IPython
     '''
@@ -125,7 +144,9 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=1 ):
             f.write( TRIMAUTO )
             f.close()
         if not silent: print('i...   TRIM.IN  and TRIMAUTO written')
-        if isjupyter: silent=True #### PROBLEM with X in Jupyter?
+        if isjupyter():
+            print('i... JuPyter detected - vdislay initiated')
+            silent=True #### PROBLEM with X in Jupyter?
 #################################################### PROCESS WITH WAIT ####
         if silent:
             print("############### VDISPLAY #########################start")
@@ -214,7 +235,7 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=1 ):
         sigma=df['e'].std()
         mean=df['e'].mean()
         df=df.loc[ (df['e']>mean-3*sigma)&(df['e']<mean+3*sigma) ]  #&
-        if not silent:print('i... ',llen - len(df),'event was removed due to sigma limit' )
+        if not silent:print('i... ',llen - len(df),'events were removed due to sigma limit' )
         sigma=df['e'].std()
         mean=df['e'].mean()
         df=df.loc[ (df['e']>mean-3*sigma)&(df['e']<mean+3*sigma) ]  #&
@@ -315,7 +336,7 @@ def proj( ion, energy, angle, number , seed=765):
 
     
 ############################################
-def targ(  name, thick,   ion,  dens=0.0  ):
+def targ(  name, thick,   ion,  outerdens=0.0  ):
     '''
     thickness in mg/cm2 from NOW
     ...
@@ -328,6 +349,7 @@ def targ(  name, thick,   ion,  dens=0.0  ):
     !!! check CORRECT VALUES FOR BragCorr, indiv Displac/Latti/Surf !!!
     '''
 
+#   heatsubl      indivdisp  latdispl ======= The data from SRIM for elements are here:
     heatsubl=[
        .00, 
        .00,
@@ -618,52 +640,54 @@ def targ(  name, thick,   ion,  dens=0.0  ):
         ]
     ####  Z, Amu,  Energy,  Angle,  Number, BraggCorr, AutoNum
     ####   Z, Amu, BragggCompCorr, indivDispl,  indivLattice, indivSurf==heatSubl
-    mat={#'li'          :[ 3,    6.941,     1.0,     25,      3,    1.67  ],
-     #    'h'           :[ 1,    1.008,     1.0,     20,      3,    2     ],
-     #    'be'          :[ 4,    9.012,     1.0,     25,      3,    3.38  ],
-     #    'b8'          :[ 5,    8.0246,    1.0,     25,      3,    5.73  ],
-     #    'n14'         :[ 7,    14.007,    1.0,     28,      3,    2     ],
-     #    'n'           :[ 7,    14.007,    1.0,     28,      3,    2     ],
-     #    'c'           :[ 6,    12.011,    1.0,     28,      3,    7.41  ],
-     #    'o'           :[ 8,    15.999,    1.0,     28,      3,    2     ],
-     #                            
-     #    'cgraphite'   :[ 6,    12.011,    1.0,     28,      3,    7.41  ],
-     #    'c12graphite' :[ 6,    12.0,      1.0,     28,      3,    7.41  ],
-     #    'camo'        :[ 6,    12.011,    1.0,     28,      3,    7.41  ],
-     #    'c14'         :[ 6,    14.0032,   1.0,     28,      3,    7.41  ],
-     #    'c14amo'      :[ 6,    14.0032,   1.0,     28,      3,    7.41  ],
-     #    'c12'         :[ 6,    12.00,     1.0,     28,      3,    7.41  ],
-     #    'c12amo'      :[ 6,    12.0,      1.0,     28,      3,    7.41  ],
-     #    'mg'          :[ 12,   24.305,    1.0,     25,      3,    1.54  ],
-     #    'mg26'        :[ 12 ,  25.983,    1.0,     25,      3,    1.54  ],
-     #    'al'          :[ 13,   26.982,    1.0,     25,      3,    3.36  ],
-     #    'si'          :[ 14,   28.086,    1.0,     15,      2,    4.7   ],
-     #    'ti'          :[ 22,   47.9,      1.0,     25,      3,    4.89  ],
-     #    'fe'          :[ 26,   55.847,    1.0,     25,      3,    4.34  ],
-     #    'cu'          :[ 29,   63.546,    1.0,     25,      3,    3.52  ],
-     #    'nb'          :[ 41,   92.906,    1.0,     25,      3,    7.59  ],
-     #    'ta'          :[ 73,  180.95,     1.0,     25,      3,    8.1   ],
-     #    'au'          :[ 79,  196.97,     1.0,     25,      3,    3.8   ],
-         ########   prvky +  stoich,   CompoundBragg       density
-         'mylar'  : [{ 'h': 0.363636 },{ 'c': 0.454545 },{ 'o': 0.181818 }, 0.9570329,  1.397 ],
-         'ch2'    : [{ 'h': 0.666667 },{ 'c': 0.333333 }, 0.9843957 , 0.93  ],
-         'cd2'    : [{ 'h': 0.666667 },{ 'h2': 0.333333 }, 0.9843957 , 1.062857 ],
-         'lif'    : [{ 'li': 0.5 },{ 'f': 0.5 }, 1.0 , 2.635 ],
-         'cd2'    : [{ 'h': 0.666667 },{ 'h2': 0.333333 }, 0.9843957 , 1.062857 ],
-#         'havar'  : [{ 'c': 0.666667 },{ 'cr': 0.333333 }, 0.9843957 , 1.062857 ],
-         'melamin': [{ 'c': 0.2 },{ 'h': 0.4 },{ 'n': 0.4 }, 1.0 , 1.574 ],
-         'air'    : [{ 'c': 0.000124 },{ 'o': 0.231781 },{ 'n': 0.755268 }, { 'ar': 0.012827 },1.0,0.00120484 ],
+    mat={} # I NEED FOR ELEMENT
+#     mat={#'li'          :[ 3,    6.941,     1.0,     25,      3,    1.67  ],
+#          ########   prvky +  stoich,   CompoundBragg       density
+#          'mylar'  : [{ 'h': 0.363636 },{ 'c': 0.454545 },{ 'o': 0.181818 }, 0.9570329,  1.397 ],
+#          'ch2'    : [{ 'h': 0.666667 },{ 'c': 0.333333 }, 0.9843957 , 0.93  ],
+#          'cd2'    : [{ 'h': 0.666667 },{ 'h2': 0.333333 }, 0.9843957 , 1.062857 ],
+#          'lif'    : [{ 'li': 0.5 },{ 'f': 0.5 }, 1.0 , 2.635 ],
+#          'cd2'    : [{ 'h': 0.666667 },{ 'h2': 0.333333 }, 0.9843957 , 1.062857 ],
+# #         'havar'  : [{ 'c': 0.666667 },{ 'cr': 0.333333 }, 0.9843957 , 1.062857 ],
+#          'melamin': [{ 'c': 0.2 },{ 'h': 0.4 },{ 'n': 0.4 }, 1.0 , 1.574 ],
+#          'air'    : [{ 'c': 0.000124 },{ 'o': 0.231781 },{ 'n': 0.755268 }, { 'ar': 0.012827 },1.0,0.00120484 ],
          
-    #     'ar':[ 10, 19.992440,  0.0   ]
-    }
+#     #     'ar':[ 10, 19.992440,  0.0   ]
+#     }
 
+    
+    
+    #########################################
+    #  heatsubl   indi lat displacement  and other data defined/introduced up to this point
+    #
+    #  NOW - find material/element/isotope
+    #  mat[name]  will contain  eZ,amu  1. i,la,heatsu
+    #
     isgas=-1
-    if name in mat:
-        print('?...',name, '... MAT IS KNOWN AND DEFINED',mat[name])
+    if name.title() in srcomp.material_text.keys():     ####################################################
+        #==========  predefined materials HERE ===================
+        if name.title() in srcomp.material_gas: isgas=1
+        print('+...',name, '... MAT IS KNOWN and defined in compounds')
         # THIS CAN HAPPEN ONLY FOR COMPOUNDS NOW....................
+        # replace  "HHHHH into MMMMM  WWWWW    DDDDD"
+        ##OUTTEXT=srcomp.material_text[ name.title() ]
+        OUTLIST=srcomp.rebuild( name.title() )
+        #for i in OUTLIST: print(i)
+        OUTTEXT="\r\n".join( OUTLIST )
+        OUTTEXT=OUTTEXT.replace("HHHHH",  ion.namesrim )
+        OUTTEXT=OUTTEXT.replace("MMMMM", name )
+        if outerdens<=0.0:
+            dens=srcomp.get_density( name.title() )
+        else:
+            dens=outerdens
+        OUTTEXT=OUTTEXT.replace("DDDDD", str(dens) )
+        OUTTEXT=OUTTEXT.replace('WWWWW', str( 1000*thick/dens/1e-2  ) )  # in Angstr
+
+        #print(OUTTEXT)
+        #quit()
+        return OUTTEXT  ####################################################
     else:
         print('?...',name,'MAT NOT defined ... ')
-        from NuPhyPy.db.ReadNubase import gas,densities,elements,molarweights
         if name.title() in elements:
             print('+...',name.title(),'ELEMENT detected ... ')
             eZ=elements.index(name.title())
@@ -721,9 +745,8 @@ def targ(  name, thick,   ion,  dens=0.0  ):
     line[5]=line[5].replace('AAAAA', str(mat[name][1]) )
 
     # GET TABLE DENSITY 
-    if dens<=0.0:
+    if outerdens<=0.0:
 #        print('i... density is given 0 - trying to find a rho for...',name.title())
-        from NuPhyPy.db.ReadNubase import gas,densities,elements
         if name.title() in elements:
             CC=name.title()
             #print(CC,type(CC))
@@ -733,12 +756,11 @@ def targ(  name, thick,   ion,  dens=0.0  ):
             print('i... element ',name.title(),'found, density is set to:', dens)
         else:
  #           print('i... element NOT found, maybe it is an isotope?')
-            import NuPhyPy.db.ReadNubase as db
-            from NuPhyPy.db.ReadNubase import gas,densities,elements
             isotope=db.isotope( name )
             dens=isotope.isodensity
             print('i...  isotope:',isotope.name,'found;  density is set to:',dens)
-
+    else:
+        dens=outerdens
     line[8]=line[8].replace('DDDDD', str(dens) )
     #um_thickness * rho
     print('i... Thickness: {:.5f} mg/cm2 ==> {:.3f} um'.format( thick, 1000*thick/dens/1e+2 )  )
@@ -748,7 +770,7 @@ def targ(  name, thick,   ion,  dens=0.0  ):
 
 
     if isgas>0:
-        print('!... ASSUMING GASEOUS ', name.title() )
+        print('!... ASSUMING GASEOUS material:', name.title() )
         line[10]=line[10].replace('0', str( isgas) )  # SOILID 0,  GAS 1
 
     line[12]=str(mat[name][2])  # BragCorr 1.0
@@ -763,6 +785,8 @@ def targ(  name, thick,   ion,  dens=0.0  ):
     return OUTTEXT
 #    print( OUTTEXT )
 #    print('------- target done ------------')
+#############################################################################
+
 
 
 
