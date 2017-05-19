@@ -55,7 +55,7 @@ parser.add_argument('-i','--incomming',  default="h2,c12" , help='REACT')
 parser.add_argument('-o','--outgoing',  default="h2,c12"  , help='REACT')
 parser.add_argument('-a','--angle',  default=0 , help='REACT')
 
-parser.add_argument('-e','--energy', default=5.804 , help='REACT/SRIM')
+parser.add_argument('-e','--energy', default=5.804 , help='REACT+SRIM')
 
 parser.add_argument('-t','--thickness',  default="100ug" , help='SRIM')
 parser.add_argument('-m','--material',   default="c12",help='SRIM')
@@ -65,7 +65,10 @@ parser.add_argument('-P','--Pressure',  default=1013.25e+3 ,type=float, help='SR
 parser.add_argument('-T','--Temperature',  default=273.15 , type=float,help='SRIM')
 
 parser.add_argument('-s','--silent', action="store_true",   help='SRIM')
-parser.add_argument('-S','--Store', default="",   help='SRIM')
+
+parser.add_argument('-S','--Store', default="",   help='SRIM + STORE')
+
+parser.add_argument('-f','--fwhm', default=0.,   help='STORE - convolute with a detector resolution (FWHM) in [MeV]')
 
 #parser.add_argument('-t','--thickness',  default="4" , help='SRIM')
 args=parser.parse_args() 
@@ -163,15 +166,20 @@ if args.mode=='srim':
     #    print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
     #   print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )
 
+    ### MAYBE - I WILL NUMBER ALREADY FROM HERE
     if args.Store!="":
         store = pd.HDFStore( args.Store )
+        existing=len(store.keys())
+        print('D... already existing is', existing )
         #print(store)
         if material.title() in srcomp.material_gas:
             pt='P{}_T{}'.format( args.Pressure, args.Temperature )
         else:
             pt=""
             
-        fname='{}_in_{:_<6s}_w{:_<6s}_r{:3.1f}_{}_n{:04d}_e{:5.3f}_ef{:.3f}'.format( args.incomming, args.material, args.thickness, float(args.density), pt, int(args.number), float(args.energy), mean )
+        fname='{:03d}_{}_in_{:_<6s}_w{:_<6s}_r{:3.1f}_{}_n{:04d}_e{:06.3f}_ef{:06.3f}'.format( existing,
+                            args.incomming, args.material, args.thickness, float(args.density),
+                             pt, int(args.number), float(args.energy), mean )
         fname=fname.replace('.','_')
         store[fname] = tmpp
         print(store)
@@ -191,7 +199,11 @@ if args.mode=='store':
                 dfname=sorted(store.keys())[ int(stor[inx+1])]
                 print('o... openning: ', dfname )
                 df=store[dfname]
-                print(df['e'].mean() )
+                if float(args.fwhm)>0.: ########## GENERATE GAUSS ############
+                    print('i...  mean before convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
+                    df['fwhm']=np.random.normal( 0.0, float(args.fwhm) ,  len(df) )
+                    df['e']=df['e']+df['fwhm']
+                    print('i... mean with    convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
                 plt.hist( df['e'], 20, ec='k',alpha=0.3,label=dfname) 
             plt.legend( loc=4 , fontsize="x-small" )
             plt.show()
