@@ -199,9 +199,9 @@ if args.mode=='store':
                 dfname=sorted(store.keys())[ int(stor[inx+1])]
                 print('o... openning: ', dfname )
                 df=store[dfname]
-                if float(args.fwhm)>0.: ########## GENERATE GAUSS ############
+                if float(args.fwhm)>0.: ########## GENERATE GAUSS ############ fwhm=2.355sigma
                     print('i...  mean before convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
-                    df['fwhm']=np.random.normal( 0.0, float(args.fwhm) ,  len(df) )
+                    df['fwhm']=np.random.normal( 0.0, float(args.fwhm)/2.355 ,  len(df) )
                     df['e']=df['e']+df['fwhm']
                     print('i... mean with    convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
                 plt.hist( df['e'], 20, ec='k',alpha=0.3,label=dfname) 
