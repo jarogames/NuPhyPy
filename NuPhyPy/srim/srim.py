@@ -717,7 +717,7 @@ def targ(  name, thick,   ion,  outerdens=0.0  ):
     line.append("Target Elements:    Z   Mass(amu)")
     #5
     line.append("Atom 1 = MMMMM =        ZZZZZ   AAAAA")  
-    line.append("Layer   Layer Name /               Width Density     Be(4)")
+    line.append("Layer   Layer Name /               Width Density     MMMMM")
     line.append("Numb.   Description                (Ang) (g/cm3)    Stoich")
     line.append(" 1      \"MMMMM\"             WWWWW    DDDDD       1")
     line.append("0  Target layer phases (0=Solid, 1=Gas)")
@@ -743,6 +743,7 @@ def targ(  name, thick,   ion,  outerdens=0.0  ):
     line[5]=line[5].replace('MMMMM', name )
     line[5]=line[5].replace('ZZZZZ', str(mat[name][0]) )
     line[5]=line[5].replace('AAAAA', str(mat[name][1]) )
+    line[6]=line[6].replace('MMMMM', name ) # NEW - Be(4) -> to element
 
     # GET TABLE DENSITY 
     if outerdens<=0.0:
