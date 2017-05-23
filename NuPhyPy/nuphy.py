@@ -103,11 +103,11 @@ if args.mode=='react':
 #
 ###############################
 def prepare_trimin( material,  thick,  rho  ):
-    #print('D... preparing TRIMIN:', material, thick, rho)
+    print('D... preparing TRIMIN:', material, thick, rho)
     #print('D... PV/T density:')
     rho=float(rho)
     if rho==0:
-        rho=material_density(material) # compound/element/isot
+        rho=material_density(material) # compound/element/isot = ALL
     # GASEOUS DENSITY
     # 1/ if compound - rho from function
     # 2/ element:
@@ -123,20 +123,22 @@ def prepare_trimin( material,  thick,  rho  ):
         rho2=args.Pressure/R/args.Temperature
         print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
     elif material.title() in elements:
+        print("D... rho - elements")
         eZ=elements.index(material.title())
+        print("D... rho - elements  eZ=",eZ)
         if gas[ eZ ]==1:
             R=1013.25e+3/273.15/rho
             rho2=args.Pressure/R/args.Temperature
             print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
-        else:
-            isotope=db.isotope( material )
-            eZ=isotope.Z
-            if gas[ eZ ]==1:
-                R=1013.25e+3/273.15/rho
-                rho2=args.Pressure/R/args.Temperature
-                print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
+    else:
+        isotope=db.isotope( material )
+        eZ=isotope.Z
+        if gas[ eZ ]==1:
+            R=1013.25e+3/273.15/rho
+            rho2=args.Pressure/R/args.Temperature
+            print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
     rho=rho2
-
+    print("D... rho deduced")
     # THICKNESS TO mgcm2:    ##### MY UNIT WILL BE mg/cm2
     thickok=False
     if thick.find('ug')>0:
@@ -176,6 +178,7 @@ if args.mode=='srim':
     thick=args.thickness
     material=args.material.title()  # this will get complicated with layers
     nmats=len(material.split(','))
+    print("D... counting number of layers",nmats)
     if nmats>1:
         print('!... ',nmats,'materials - TEST REGIME:')
         if nmats!=len(thick.split(',')):
@@ -258,6 +261,7 @@ if args.mode=='srim':
         quit()
 
     else:
+        print("D... one material - preparing TRIMIN")
         TRIMIN=prepare_trimin(  material, thick,  rho   ) 
     #########################################
     # PREPARE FILE
@@ -272,13 +276,18 @@ if args.mode=='srim':
     else:
         tmpp=sr.run_srim(ipath, TRIMIN,  silent=False, nmax=number)
     print(tmpp[-5:])
-    deint=tmpp['e'].max()-tmpp['e'].min()
-    sigma=tmpp['e'].std()
-    mean=tmpp['e'].mean()
-    median=tmpp['e'].median()
-    print()
-    print( "{:.3f} MeV (median {:.3f}) +- {:.3f}  hi-lo={:.3f}  Eloss={:.3} MeV".format( mean, median,  sigma , deint ,  Eini-mean)   )
-    #print( tmpp['e'].max(),tmpp['e'].min(), de  )
+    if 'e' in tmpp:
+        deint=tmpp['e'].max()-tmpp['e'].min()
+        sigma=tmpp['e'].std()
+        mean=tmpp['e'].mean()
+        median=tmpp['e'].median()
+        print()
+        print( "{:.3f} MeV (median {:.3f}) +- {:.3f}  hi-lo={:.3f}  Eloss={:.3} MeV".format( mean, median,  sigma , deint ,  Eini-mean)   )
+    else:
+        #print(tmpp)
+        print()
+        print('{:.3f} +- {:.4f} um implanted depth'.format( tmpp['x'].mean(), tmpp['x'].std() )  )
+        #print( tmpp['e'].max(),tmpp['e'].min(), de  )
     #plt.hist( tmpp['e'], 20 , facecolor='red', alpha=0.25)
     #    print("R...    E mean +- std")
     #    print(tmpp['e'].mean(), '  ' ,tmpp['e'].std() )

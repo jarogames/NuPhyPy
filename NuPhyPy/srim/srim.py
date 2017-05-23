@@ -117,6 +117,23 @@ def srim_readout(temppath):
         cont.pop(0)
         return [x.rstrip() for x in cont]
         
+def srim_readout_range(temppath):
+    with cd(temppath):
+        with open(r'SRIM Outputs/RANGE_3D.txt' , 'rb' ) as f:
+            cont=f.readlines()
+            f.close()
+        print('D... file is read')
+        for i in range(13):
+            cont.pop(0) # 1st 12 lines down
+            ###print( 'LINEREM=',cont[0].decode('ascii', errors='ignore') )
+        while cont[0].decode('utf8', errors='ignore').find('Number')<0 or cont[0].decode('utf8', errors='ignore').find('Angstrom')<0:
+            cont.pop(0)
+        print( 'LINEREM=',cont[0].decode('utf8', errors='ignore') )
+        cont.pop(0)
+        cont.pop(0)
+        print( 'LINE=',cont[0].decode('utf8', errors='ignore') )
+        return [x.decode('utf8', errors='ignore').rstrip() for x in cont]
+        
             
 
 def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=1 ):
@@ -164,7 +181,7 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=1 ):
         sys.stdout.flush()
         sys.stdout.write("\b" * (toolbar_width+1)) # return to start after '['
 
-        for i in range(84500):
+        for i in range(84500):  #ONE DAY CHECK
             destin=temppath+'/SRIM\ Outputs/TRANSMIT.txt'
             output = subprocess.check_output('wc -l '+destin+' 2>/dev/null | cut -d " " -f 1', shell=True).decode('utf8').rstrip()
             try:
@@ -240,6 +257,20 @@ def run_srim(RPATH, TRIMIN , strip=True, silent=False , nmax=1 ):
         mean=df['e'].mean()
         df=df.loc[ (df['e']>mean-3*sigma)&(df['e']<mean+3*sigma) ]  #&
         if not silent:print('i... ',llen - len(df),'event was removed due to sigma limit' )
+    if len(df)<2 or  df['e'].mean is None:
+        print("!... no transmited ions probably, i should check RANGE_3D.TXT")
+        data=srim_readout_range( temppath )
+        print('D... data read')
+        datas=[ (x.split()[1:]) for x in data ]
+        datas=[ [ float(j) for j in i ] for i in datas ]
+        df = DataFrame(datas, columns=['x','y','z'])
+        df['x']=df['x']/10000.  # um
+        df['y']=df['y']/10000.  # um
+        df['z']=df['z']/10000.  # um
+        #print( df.iloc[-5:][['e','x','y','z','cosx','cosy'] ] )
+        #df.drop('i', axis=1, inplace=True)
+        #df.drop('n', axis=1, inplace=True)
+        print("i... DEPTH= ",df['x'].mean,'um +- ',df['x'].std)
         ###########################  DELETE TEMP #########
     if not silent:print('x... deleting temporary', temppath)
     shutil.rmtree(temppath)
