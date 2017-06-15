@@ -49,10 +49,24 @@ def material_density( matnam ):
 
 #           
 #################### PARSE
-#
-parser=argparse.ArgumentParser(description='NuPhy.py');
 
-parser.add_argument('mode' ,help='react; srim; store ')
+
+parser=argparse.ArgumentParser(description="""NuPhy.py
+
+10um of Si:
+
+./nuphy.py srim  -i he4 -m si -e 5.804 -n 100 -t 10um  
+
+with density:
+./nuphy.py srim  -i he4 -m si -e 5.804 -n 100 -t 10um  -d 1.2 
+
+gas:
+./nuphy.py srim  -i he4 -m air -e 5.804 -n 100 -t 10000um  -P 150 -T 293 
+
+
+""");
+
+parser.add_argument('mode' ,help='react; srim; store')
 parser.add_argument('-i','--incomming',  default="h2,c12" , help='REACT')
 parser.add_argument('-o','--outgoing',  default="h2,c12"  , help='REACT')
 parser.add_argument('-a','--angle',  default=0 , help='REACT')
