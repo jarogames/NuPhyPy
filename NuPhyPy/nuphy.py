@@ -63,6 +63,9 @@ with density:
 gas:
 ./nuphy.py srim  -i he4 -m air -e 5.804 -n 100 -t 10000um  -P 150 -T 293 
 
+store:
+./nuphy.py store
+
 
 """);
 
@@ -111,13 +114,46 @@ if args.mode=='react':
     th=float( args.angle)
     res=kin.react( nu1,nu2,nu3,nu4, TKE=TKE, theta=th,silent=0)
 
+
+
+
+    
 ###############################################################  SRIM
 #
 #  srim
 #
 ###############################
+
+
+##################
+#  question on GAS = we use 2x
+#################
+def isitGas( material ):
+    if material.title() in srcomp.material_gas:
+        return 1
+    if material.title() in elements:
+        eZ=elements.index(material.title())
+        if gas[ eZ ]==1:
+            return 1
+    try:
+        isotope=db.isotope( material , silent=True  )
+    except:
+        return 0
+    if isotope==None:
+        eZ=isotope.Z
+        if gas[ eZ ]==1:
+            return 1
+    return 0
+        
+
+######################################
+#PREPARE TRIMIN
+########################################
 def prepare_trimin( material,  thick,  rho  ):
-    print('D... preparing TRIMIN:', material, thick, rho)
+    '''
+    Here I prepare materials:  single layers
+    '''
+    print('D... preparing TRIMIN:', material, thick, rho, '-------------')
     #print('D... PV/T density:')
     rho=float(rho)
     if rho==0:
@@ -144,13 +180,20 @@ def prepare_trimin( material,  thick,  rho  ):
             R=1013.25e+3/273.15/rho
             rho2=args.Pressure/R/args.Temperature
             print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
-    else:
-        isotope=db.isotope( material )
-        eZ=isotope.Z
-        if gas[ eZ ]==1:
-            R=1013.25e+3/273.15/rho
-            rho2=args.Pressure/R/args.Temperature
-            print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
+    else: # could be also a gaseous  isotope
+        print('D... maybe gaseous isotope?')
+        try:
+            isotope=db.isotope( material , silent=True )
+        except:
+            isotope=None
+        if isotope==None:
+            print('D... not a gaseous isotope')
+        else:
+            eZ=isotope.Z
+            if gas[ eZ ]==1:
+                R=1013.25e+3/273.15/rho
+                rho2=args.Pressure/R/args.Temperature
+                print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
     rho=rho2
     print("D... rho deduced")
     # THICKNESS TO mgcm2:    ##### MY UNIT WILL BE mg/cm2
@@ -181,6 +224,19 @@ def prepare_trimin( material,  thick,  rho  ):
 ############# END OF PREPARE TRIMIN
 
 
+
+
+
+
+
+
+
+###############################
+#  SRIM MODE
+#        here i try to prepare also multilayer  materials
+#        
+##############################
+
 if args.mode=='srim':
     print('i...',args.mode)
     ipath=sr.CheckSrimFiles()
@@ -207,11 +263,28 @@ if args.mode=='srim':
         print('i... PREPARING ANALYSIS  mat, thick, rho:')
         TRILIST=[]
         for imat in range(nmats):
-            print(imat,'... ', material.split(',')[imat].title(), thick.split(',')[imat],  rho.split(',')[imat],
+            print(imat,'... =========', material.split(',')[imat].title(), thick.split(',')[imat],  rho.split(',')[imat],
                   "================================"  )
-            TRILIST.append( prepare_trimin(  material.split(',')[imat], thick.split(',')[imat],  rho.split(',')[imat]   ) )
+            TRILIST.append( prepare_trimin(  material.split(',')[imat].title(), thick.split(',')[imat],  rho.split(',')[imat]   )   )
         print('i... I GOT ALL TRIM.IN files. Now somebody must merge....')
-        #print(TRILIST)
+        ############################   MERGING  LAYERS ##############
+        print('D--------------')
+        for xi,xii in enumerate(TRILIST):  print( xi, xii,'\n')          # PRINT
+        TRIMIN="==> SRIM-2013.00 This file controls TRIM Calculations.\r\n"
+        #TRIMIN= TRIMIN + TRILIST[0].split("\n")[0].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[1].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[2].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[3].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[4].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[5].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[6].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[7].rstrip()+'\r\n'   # target material  num ele and layers
+        #TRIMIN=TRIMIN+"            8 \r\n"
+
+        
+        #print(TRIMIN)
+        #quit()
+        #############################################################
 #        with open('TRIM.IN.ALL','w') as f:
 #            for imat in range(nmats):
 #                f.write(TRILIST[imat])
@@ -233,7 +306,7 @@ if args.mode=='srim':
             #---- duplicate: but i find #line of Layer Layer +2
             for j,v in enumerate( listOfLines ): 
                 if v.find('Layer')>=0 and v.find('Density')>0:
-                    print(imat,'LAYER LINE=',j+2+1) # starts with 0
+                    print(imat,'LAYER LINE= #',j+2+1) # starts with 0
                     layerList.append( re.findall(r'".+"|[\w\.\-]+', listOfLines[j+2] ) )
         #print(line8)
         layname='...'.join( [ i[0].strip("\"").rstrip() for i in line8]  )
@@ -241,6 +314,12 @@ if args.mode=='srim':
         nelems=sum( map(int, [i[1] for i in line8] ) )
         nlayers=sum( map(int, [i[2] for i in line8] ) )
         print(layname,nelems,nlayers)
+        TRIMIN=TRIMIN+"{} {} {}\r\n".format(layname,nelems,nlayers)
+        #TRIMIN= TRIMIN + TRILIST[0].split("\n")[8].rstrip()+'\r\n'  # He 4  into C  - nedavat
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[9].rstrip()+'\r\n'
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[10].rstrip()+'\r\n' 
+        TRIMIN= TRIMIN + TRILIST[0].split("\n")[11].rstrip()+'\r\n' 
+        
         # NOW I need to get all Atom .. = ... = lines
         #print(TRILISTTOT)
         #regex = re.compile('^Atom\s\d+\s=\s')
@@ -251,16 +330,19 @@ if args.mode=='srim':
         #        atoms=[m.group(1) for l in TRILISTTOT for m in [regex.search(l)] if m]
         #atoms=re.findall(r'Atom\s\d+\s=\s', TRILISTTOT)
         for i,v in enumerate(atoms):
-            atoms[i]=re.sub( 'Atom\s(\d+)\s','Atom '+str(i+1)+' ' , v )
-        print( '\n'.join(atoms) )
+            atoms[i]=re.sub( 'Atom\s(\d+)\s','Atom '+str(i+1)+' ' , v ).rstrip()
+        print( '\n'.join( atoms ) )
+        TRIMIN=TRIMIN+ '\r\n'.join(atoms)+'\r\n'
         # NOW I need Layer Layer
         preLayer=re.sub(r'^(.+Density).+$',r'\1', lineLay[0] )
         for i,v in enumerate(lineLay):
             lineLay[i]=re.sub('^.+?Density ','', v).strip()
         print( preLayer,'  '.join(lineLay) )
+        TRIMIN=TRIMIN+preLayer+' '+'  '.join(lineLay)+'\r\n'
         # NOW I need the same with next "stoich stoich stoich...."
         lineStoich="Numb.   Description                (Ang) (g/cm3)   "+" Stoich "*nelems
         print(lineStoich)
+        TRIMIN=TRIMIN+lineStoich+'\r\n'
         # NOW I need 1   "Layer 1";  2  "Layer 2"
         zeroes=0
         for i,v in enumerate(layerList):
@@ -269,10 +351,95 @@ if args.mode=='srim':
             prepart='  '.join(v[1:4])
             postpart='  '.join(v[4:])
             print( "{} {} {} {} {}".format(i+1,prepart,zstring,postpart, zpost) )
+            TRIMIN=TRIMIN+ "{} {} {} {} {}\r\n".format(i+1,prepart,zstring,postpart, zpost) 
             zeroes=zeroes+int(line8[i][1])
             # 16 fields;
         # NOW I need to copy lines with GAS.....
-        quit()
+        lineGas="0  Target layer phases (0=Solid, 1=Gas)"
+        print(lineGas)
+        TRIMIN=TRIMIN+lineGas+'\r\n'
+        for i,v in enumerate(layerList):
+            ###print( 'material====',v )
+            print(  isitGas(v[1]),' '   , end=' ')
+            TRIMIN=TRIMIN+ str(isitGas(v[1]) )+' '
+        print()
+        TRIMIN=TRIMIN+'\r\n'
+        ######## RAGG
+        lineBragg="Target Compound Corrections (Bragg)"
+        print(lineBragg)  # i want to put all lines  12 ( i think)
+        TRIMIN=TRIMIN+lineBragg+'\r\n'
+        for imat in range(nmats):
+            listOfLines=TRILIST[imat].split('\n')
+            for jmat in range( len(listOfLines) ):
+                if listOfLines[jmat].find('Target Compound Corrections')>=0:
+                    #print( listOfLines[jmat].rstrip() )
+                    print( listOfLines[jmat+1].rstrip()  , end=' ')
+                    TRIMIN=TRIMIN+ listOfLines[jmat+1].rstrip() +' '
+                    break
+            if jmat==len(listOfLines)-1:
+                print('!... Bragg line not found')
+                quit()
+        print()
+        TRIMIN=TRIMIN+'\r\n'
+        #Individual target atom displacement energies (eV)
+        lineAtomDisp="Individual target atom displacement energies (eV)"
+        print(lineAtomDisp)
+        TRIMIN=TRIMIN+lineAtomDisp+'\r\n'
+        for imat in range(nmats):
+            listOfLines=TRILIST[imat].split('\n')
+            for jmat in range( len(listOfLines) ):
+                if listOfLines[jmat].find('Individual target atom displacement energies')>=0:
+                    #print( listOfLines[jmat].rstrip() )
+                    print( listOfLines[jmat+1].rstrip()  , end=' ')
+                    TRIMIN=TRIMIN+ listOfLines[jmat+1].rstrip() +' '
+                    break
+            if jmat==len(listOfLines)-1:
+                print('!... Displacement line not found')
+                quit()
+        print()
+        TRIMIN=TRIMIN+'\r\n'
+
+        #Individual target atom displacement energies (eV)
+        lineAtomDisp="Individual target lattice binding energies (eV)"
+        print(lineAtomDisp)
+        TRIMIN=TRIMIN+lineAtomDisp+'\r\n'
+        for imat in range(nmats):
+            listOfLines=TRILIST[imat].split('\n')
+            for jmat in range( len(listOfLines) ):
+                if listOfLines[jmat].find('Individual target atom lattice binding energies')>=0:
+                    #print( listOfLines[jmat].rstrip() )
+                    print( listOfLines[jmat+1].rstrip()  , end=' ')
+                    TRIMIN=TRIMIN+ listOfLines[jmat+1].rstrip() +' '
+                    break
+            if jmat==len(listOfLines)-1:
+                print('!... Lattice binding line not found')
+                quit()
+        print()
+        TRIMIN=TRIMIN+'\r\n'
+        #Individual target atom displacement energies (eV)
+        lineAtomDisp="Individual target atom surface binding energies (eV)"
+        print(lineAtomDisp)
+        TRIMIN=TRIMIN+lineAtomDisp+'\r\n'
+        for imat in range(nmats):
+            listOfLines=TRILIST[imat].split('\n')
+            for jmat in range( len(listOfLines) ):
+                if listOfLines[jmat].find('Individual target atom surface binding energies')>=0:
+                    #print( listOfLines[jmat].rstrip() )
+                    print( listOfLines[jmat+1].rstrip()  , end=' ')
+                    TRIMIN=TRIMIN+ listOfLines[jmat+1].rstrip() +' '
+                    break
+            if jmat==len(listOfLines)-1:
+                print('!... Surface binding line not found')
+                quit()
+        print()
+        TRIMIN=TRIMIN+'\r\n'
+        print('Stopping Power Version (1=2011, 0=2011)')
+        TRIMIN=TRIMIN+'Stopping Power Version (1=2011, 0=2011)\r\n'
+        print(' 0 ')
+        TRIMIN=TRIMIN+' 0\r\n'
+        
+        print('\n\n\n',TRIMIN,"\n\n\n")
+        #quit()
 
     else:
         print("D... one material - preparing TRIMIN")

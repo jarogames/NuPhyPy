@@ -96,7 +96,7 @@ class isotope:
         parity=0.0
         amu=0.0
         isodensity=0.0
-        def __init__(self, A,  Z=-1):
+        def __init__(self, A,  Z=-1,  silent=False):
                 '''
                 Possibilities of input:
                 (4,2)     ... optimal
@@ -138,7 +138,7 @@ class isotope:
                                 self.Z= elements.index( zname )
                                 #print(self.Z)
                         except:
-                                print('!... no such element like', zname)
+                                if not silent: print('!... no such element like', zname)
                                 self.Z=-1
                         namm=re.search(r"([\d]+)",   A )
                         #print( A, 'exctracted A:  ', namm.group(1) )
@@ -159,7 +159,7 @@ class isotope:
                         self.Z=Z
                         #print('Z=',Z,' is element',elements[Z])
                 if (self.A>=massnp.shape[0]) or (self.Z>=massnp.shape[1]):
-                        print('!... No isotope',A,Z)
+                        if not silent: print('!... No isotope',A,Z)
                         return None
                 A=self.A  # be sure to use int from now
                 Z=self.Z
@@ -275,7 +275,7 @@ class isotope:
                 else:
                         return None
                 self.isodensity=densities[Z]/molarweights[Z]*self.amu
-                print('=... ',self.name,'(',A,Z,')', self.isodensity,'g/cm3',densities[Z],'g/cm3',molarweights[Z],'g/mol')
+                if not silent: print('=... ',self.name,'(',A,Z,')', self.isodensity,'g/cm3',densities[Z],'g/cm3',molarweights[Z],'g/mol')
                 if len(gas)==0:
                         for i in densities:
                                 if i>0.1:
