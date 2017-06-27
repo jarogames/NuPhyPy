@@ -149,6 +149,7 @@ def iterate_chunks_backwards(y, spelen,labi=0):
 #
 import numpy as np
 from math import log
+import datetime as dt
 
 def get_better_peaks( peakse, peaksy ):
         peaksyl=[ log(q) if q>0 else 1 for q in peaksy]
@@ -175,7 +176,7 @@ def get_better_peaks( peakse, peaksy ):
 
 
 ######################################### READ n42 SPECTRUM #################
-def read(name, emin=10,emax=3000):
+def read(name, emin=10,emax=3000, verbose=True ):
         print('reading',name)
 #        mpld3.enable_notebook()
         tree = etree.parse(name)  
@@ -187,29 +188,43 @@ def read(name, emin=10,emax=3000):
             #print(c.tag)
             for d in c:
                 if ( c.tag.find('EnergyCalibration')>0 and d.tag.find('CoefficientValues')>0 ):
-                    #print('===============CV',d.text)
+                    if verbose: print('===============  CV',d.text)
                     cv=[float(x) for x in d.text.split()]
-                    #print(cv)
+                    if verbose:print(cv)
                 if ( c.tag.find('RadMeasurement')>0 and d.tag.find('RealTimeDuration')>0 ):
-                    #print('===============  RT',d.text)
+                    if verbose: print('===============  RT',d.text)
                     rt=decode_RT( d.text )
+                    duration=dt.timedelta(seconds=float(rt))
+                    if verbose: print(rt)
                 if ( c.tag.find('RadMeasurement')>0 and d.tag.find('StartDateTime')>0 ):
-                    print('===============SD',d.text)
+                    if verbose: print('===============  SD',d.text)
+                    #t = dt.datetime()
+                    startdate=d.text.split('T')[0].split('-')
+                    starttime=d.text.split('T')[1].split(':')
+                    startdate=list(map( int, startdate ))
+                    starttime=list(map( int, starttime ))
+                    #SD 2017-6-23T14:32:20  not RT P00Y00M00DT00H01M52.68S 
+                    #dt=decode_RT( d.text )
+                    start=dt.datetime( *startdate, *starttime )
+                    if verbose: print(  start )
                 if ( c.tag.find('RadMeasurement')>0 and d.tag.find('Spectrum')>0 ):
                     for e in d:
                         if ( e.tag.find('LiveTimeDuration')>0 ):
-                            #print('===============LT',e.text)
+                            if verbose: print('===============  LT',e.text)
                             lt=decode_RT( e.text )
+                            if verbose: print(lt)
                         if ( e.tag.find('ChannelData')>0 ):
-                            #print('===============LEN=',len(e.text))
+                            if verbose: print('===============  LEN=',len(e.text))
                             spes=(e.text).replace('\n',' ').split()
                 #print('  ',d.tag,'  ',d.text)
 #        print( type(spes) , len(spes))
         spes=[float(i) for i in spes]
         ss=np.array( spes )
+        CPS=ss.sum()/duration.total_seconds() 
+        if verbose: print( 'Spectrum SUM={:.0f}   CPS={:.2f}'.format( ss.sum() , ss.sum()/duration.total_seconds() ) )
         x=np.linspace(0, cv[0]+cv[1]*len(spes), len(spes))
         xli=[ int(1000*q)/1000 for q in x]
         x=np.array(xli)
         deadt=1.0-lt/rt
-        print('deadtime=',deadt)
-        return (x,ss, deadt)
+        if verbose: print('deadtime = {:.2f}%'.format(100*deadt) )
+        return (x,ss, deadt,start,duration, CPS)
