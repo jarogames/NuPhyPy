@@ -7,6 +7,9 @@ import re
 
 ###################### DECODE  REAL TIME AND LIVE TIME FROM STRING
 def decode_RT(datum):
+        '''
+        decode time in seconds from time interval of N42
+        '''
         #print(datum)
 #        y=re.search(r'P(\d\d)Y(\d\d)M(\d\d)DT(\d\d)H(\d\d)M([\d\.])S', datum)
         y=re.search(r'P(\d\d)Y(\d\d)M(\d\d)DT(\d\d)H(\d\d)M(.*)S', datum)
@@ -177,6 +180,11 @@ def get_better_peaks( peakse, peaksy ):
 
 ######################################### READ n42 SPECTRUM #################
 def read(name, emin=10,emax=3000, verbose=True ):
+        '''
+        REead n42 format spectrum
+        returns :
+        calibrated x-axis, histogram values, DT, duration[s],livetime[s],rate
+        '''
         print('reading',name)
 #        mpld3.enable_notebook()
         tree = etree.parse(name)  
@@ -227,4 +235,5 @@ def read(name, emin=10,emax=3000, verbose=True ):
         x=np.array(xli)
         deadt=1.0-lt/rt
         if verbose: print('deadtime = {:.2f}%'.format(100*deadt) )
-        return (x,ss, deadt,start,duration, CPS)
+        # return calibrated,x-axis,histogram, start, duration[sec], livetime[sec], CPS
+        return (x,ss, deadt,start,duration, lt , CPS)
