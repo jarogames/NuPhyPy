@@ -183,7 +183,9 @@ def read(name, emin=10,emax=3000, verbose=True ):
         '''
         REead n42 format spectrum
         returns :
-        calibrated x-axis, histogram values, DT, duration[s],livetime[s],rate
+        calibrated x-axis, histogram values, DT, 
+             duration[s],livetime[s],rate[cps],
+             calibcoef0, coef1
         '''
         print('reading',name)
 #        mpld3.enable_notebook()
@@ -235,5 +237,6 @@ def read(name, emin=10,emax=3000, verbose=True ):
         x=np.array(xli)
         deadt=1.0-lt/rt
         if verbose: print('deadtime = {:.2f}%'.format(100*deadt) )
-        # return calibrated,x-axis,histogram, start, duration[sec], livetime[sec], CPS
-        return (x,ss, deadt,start,duration, lt , CPS)
+        # return calibrated,x-axis,histogram, start,
+        #     duration[sec], livetime[sec], CPS, coef0, coef1
+        return (x,ss, deadt,start,duration, lt , CPS, cv[0], cv[1] )
