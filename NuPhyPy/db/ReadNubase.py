@@ -50,6 +50,16 @@ densities=[0,   0.00008988, 0.0001785,
            9.7, 10.3, 9.9, 15.6, 23.2, 29.3, 35.0, 37.1, 40.7, 37.4, # Fm ...Mt109
            34.8, 28.7, 23.7, 16, 14, 13.5, 12.9 , 7.2, 5.0  # Ds110   ... Og118
 ];
+if len(gas)==0:
+    for i in densities:
+        if i>0.1:
+            gas.append(0)
+        else:
+            gas.append(1)
+
+
+
+            
 
 # molar weight
 molarweights=[1,  1.0079, 4.0026,  
@@ -275,7 +285,8 @@ class isotope:
                 else:
                         return None
                 self.isodensity=densities[Z]/molarweights[Z]*self.amu
-                if not silent: print('=... ',self.name,'(',A,Z,')', self.isodensity,'g/cm3',densities[Z],'g/cm3',molarweights[Z],'g/mol')
+                if not silent:
+                    print('=... {} ( {} {} ) rho_iz={:.3f} g/cm3 rho_elm={:.3f} g/cm3 Mm_el={:.3f}g/mol amu={:.4f} g/mol'.format( self.name,A,Z,self.isodensity,densities[Z],molarweights[Z],self.amu) )
                 if len(gas)==0:
                         for i in densities:
                                 if i>0.1:

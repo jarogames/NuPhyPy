@@ -1,8 +1,31 @@
 #!/usr/bin/python3
 
-#print('You entered NuPhy.py, merger of calc and srimbuster');
 print('---------------------------------------------------');
-
+print('You entered NuPhy.py, merger of calc-react and srimbuster');
+print("""
+Three MODES:
+  nuphy.py  react  -i h2,c12  -o h1  -e 19  -a 11
+  nuphy.py  srim  -i h1 -m si -e 28 -w 5500um -n 100
+  nuphy.py  srim  -i he4 -m c  -e 5.804 -w 100ug -n 100
+STORE in file:
+  nuphy.py  srim  -i he4 -m c  -e 5.804 -w 100ug -n 100 -S ~/srim_h1h2
+ LIST:
+  nuphy.py  store -S ~/srim_h1h2
+ PLOT
+  nuphy.py  store -S ~/srim_h1h2,0,1 
+  nuphy.py  store -S ~/srim_h1h2,0,1 -f yz
+  nuphy.py  store -S ~/srim_h1h2,0,1 -f x
+  nuphy.py  store -S ~/srim_h1h2,0,1 -f cos
+  nuphy.py  store -S ~/srim_h1h2,0,1 -f cosy
+  nuphy.py  store -S ~/srim_h1h2,0,1 -f 0.100
+ RRATE:
+  nuphy.py  rrate -n 10nA  -t 10ug          -m c   -xs 0.1
+  nuphy.py  rrate -n 10uA  -t 10um   -d 1.8 -m c   -xs 0.1
+  nuphy.py  rrate -n 1uA   -t 100ug         -m h2  -xs 0.1   
+  ...  ... current Nb/t;  rho_S;  Na/Mm ;  100mb=> R
+""")
+print('---------------------------------------------------');
+#time.sleep(1)
 #http://stackoverflow.com/questions/7427101/dead-simple-argparse-example-wanted-1-argument-3-results
 import argparse
 
@@ -16,19 +39,26 @@ import re
 #import NuPhyPy.srim as sr
 import NuPhyPy.srim.srim as sr
 
-from NuPhyPy.db.ReadNubase import gas,densities,elements
+from NuPhyPy.db.ReadNubase import gas,densities,elements,molarweights
 #import NuPhyPy.db.ReadNubase as db
 #from NuPhyPy.db.ReadNubase import gas,densities,elements
 
 import NuPhyPy.srim.compounds as srcomp
 
+
+######################################
+# look for compounds/elements/isotopes : return tabulated density
+#
+######################################
 def material_density( matnam ):
     #print('i... testing if ',matnam,'is in compounds ')
     #print( 'D...  keys=',srcomp.material_text.keys()  )
+    mm_amu=1.0  # NONSENSE
     if matnam.title() in srcomp.material_text.keys():
         print('F... FOUND in compounds')
         dens=srcomp.get_density( matnam.title()  )
-        print('i... FOUND density from compounds=',dens)
+        print('i... FOUND density from compounds=',dens)  # mm_amu ???
+        # mm_amu determined probably somewhere in SRIM.... # i dont need
     elif matnam.title() in elements: 
         print('F...  ',matnam,' FOUND in elements ')
         CC=matnam.title()
@@ -36,13 +66,15 @@ def material_density( matnam ):
         zzz=elements.index(  matnam.title() )
         #print(zzz)
         dens=densities[ elements.index( matnam.title() ) ]
+        mm_amu=molarweights[  elements.index( matnam.title() ) ]  # Mm for mix of isotopes
         print('i... element ',matnam.title() ,'found, density is set to:', dens)
     else:
         print('i... element NOT found, maybe it is an isotope?')
         isotope=db.isotope( matnam.title() )
         dens=isotope.isodensity
-        print('i...  isotope:',isotope.name,'found;  density is set to:',dens)
-    return dens
+        mm_amu=isotope.amu   # This is for cross sections  Mm pure
+        print('i...  isotope: {} found;  density is set to: {:.4f} g/cm3'.format(isotope.name,dens) )
+    return dens,mm_amu
 
 
 
@@ -80,17 +112,23 @@ parser.add_argument('-t','--thickness',  default="100ug" , help='SRIM')
 parser.add_argument('-m','--material',   default="c12",help='SRIM')
 parser.add_argument('-n','--number',  default=100 , help='SRIM')
 parser.add_argument('-d','--density',  default="0" , help='SRIM')
-parser.add_argument('-P','--Pressure',  default=1013.25e+3 ,type=float, help='SRIM')
+parser.add_argument('-P','--Pressure',  default=1013.25e+3 ,type=float, help='pressure in Pascals e.g.1013250')
 parser.add_argument('-T','--Temperature',  default=273.15 , type=float,help='SRIM')
 
 parser.add_argument('-s','--silent', action="store_true",   help='SRIM')
 
-parser.add_argument('-S','--Store', default="",   help='SRIM + STORE')
+parser.add_argument('-xs','--xsection', default=1.0,   help='XS in barns')
 
-parser.add_argument('-f','--fwhm', default=0.,   help='STORE - convolute with a detector resolution (FWHM) in [MeV]')
+parser.add_argument('-S','--Store', default="",   help='Determine the STORE file; When reading- tell spectrum # -S file,0,1')
+
+parser.add_argument('-f','--fwhm', default=0.,   help='with STORE:  convolute with a detector resolution (FWHM) in [MeV]; BUT ALSO  -f yz ... plot Y vs. Z scatter;  -f cos ... plot radians scatter; -f view ... view')
 
 #parser.add_argument('-t','--thickness',  default="4" , help='SRIM')
 args=parser.parse_args() 
+
+
+
+
 
 ############################################
 #
@@ -117,10 +155,14 @@ if args.mode=='react':
 
 
 
+
+
+    
+    
     
 ###############################################################  SRIM
 #
-#  srim
+#  srim    -  first functions -
 #
 ###############################
 
@@ -146,8 +188,93 @@ def isitGas( material ):
     return 0
         
 
+
+
+
+
+#####################################
+# get_thick_rho  ......  I extract the part
+#         return   thick [ug/cm2] and rho g/cm3
+#####################################
+def get_thick_rho( material,  thick, rho ):   #convert properly um and find rho
+    print('D... in  get_thick_rho ::: DUPLICITE CODE:', material, thick, rho, '-------------')
+    rho=float(rho)
+    if rho==0:
+        rho,mm_amu=material_density(material) # compound/element/isot = ALL
+    # GASEOUS DENSITY
+    # 1/ if compound - rho from function
+    # 2/ element:
+    rho2=rho # to keep if solid phase
+    #========test gas phase =========
+    if material.title() in srcomp.material_gas:
+        """
+        trim assumes the target as STP before 1982
+        T=273.15 K
+        p=1013.25 kPa
+        SRIMHelp/helpTR23.rtf
+        """
+        R=1013.25e+3/273.15/rho
+        rho2=args.Pressure/R/args.Temperature
+        print('i...rho at STD (0deg,1013kPa)=',rho,' NEW now=',rho2)
+    elif material.title() in elements:
+        #print("D... rho - elements")
+        eZ=elements.index(material.title())
+        print("D... rho - elements  eZ={:d}".format(eZ))
+        #print(gas)
+        if gas[ eZ ]==1:
+            R=1013.25e+3/273.15/rho
+            rho2=args.Pressure/R/args.Temperature
+            print('i...rho at STD (0deg,1013kPa)=',rho,' NEW now=',rho2)
+    else: # could be also a gaseous  isotope
+        print('D... maybe gaseous isotope?')
+        try:
+            isotope=db.isotope( material , silent=True )
+        except:
+            isotope=None
+        if isotope==None:
+            print('D... not a gaseous isotope')
+        else:
+            eZ=isotope.Z
+            if gas[ eZ ]==1:
+                R=1013.25e+3/273.15/rho
+                rho2=args.Pressure/R/args.Temperature
+                print('i...rho at STD (0deg,1013kPa)=',rho,' NEW now=',rho2)
+    rho=rho2
+    print("D... rho WAS deduced")
+    # THICKNESS TO mgcm2:    ##### MY UNIT WILL BE mg/cm2
+    thickok=False
+    if thick.find('ug')>0:
+        thick=float(thick.split('ug')[0])/1000
+        thickok=True
+    elif thick.find('mg')>0:
+        thick=float( thick.split('mg')[0] )
+        thickok=True
+    elif thick.find('um')>0:
+        print('!... um ! I need rho=',rho)
+        thick=float(thick.split('um')[0])
+        thick=sr.get_mgcm2( thick,  rho ) # um in, mgcm2 out
+        thickok=True
+    elif thick.find('mm')>0:
+        print('!... mm ! I need rho=',rho)
+        thick=float(thick.split('mm')[0])
+        thick=sr.get_mgcm2( thick*1000,  rho ) # um in, mgcm2 out
+        thickok=True
+    if not(thickok):
+        print('!...  thicknesses must be in ug,mg or um,mm')
+        quit()
+    print('i... {} thickness {:.6f} mg/cm2 for rho={:.3f} ... {:.0f} A = {:.2f}um'.format( material.title(),thick,
+                                                rho,1000*thick/rho/1e-2  ,   1000*thick/rho/1e+2 ) )
+    return thick, rho, mm_amu
+    
+
+
+
+
+
+
 ######################################
 #PREPARE TRIMIN
+#  prepare single layer, return one TRIM.IN line
 ########################################
 def prepare_trimin( material,  thick,  rho  ):
     '''
@@ -157,7 +284,7 @@ def prepare_trimin( material,  thick,  rho  ):
     #print('D... PV/T density:')
     rho=float(rho)
     if rho==0:
-        rho=material_density(material) # compound/element/isot = ALL
+        rho,mm_amu=material_density(material) # compound/element/isot = ALL
     # GASEOUS DENSITY
     # 1/ if compound - rho from function
     # 2/ element:
@@ -171,7 +298,7 @@ def prepare_trimin( material,  thick,  rho  ):
         """
         R=1013.25e+3/273.15/rho
         rho2=args.Pressure/R/args.Temperature
-        print('i...rho at STD (0deg,1013kPa)=',rho,' now=',rho2)
+        print('i...rho at STD (0deg,1013kPa)=',rho,' NEW now=',rho2)
     elif material.title() in elements:
         print("D... rho - elements")
         eZ=elements.index(material.title())
@@ -209,11 +336,17 @@ def prepare_trimin( material,  thick,  rho  ):
         thick=float(thick.split('um')[0])
         thick=sr.get_mgcm2( thick,  rho ) # um in, mgcm2 out
         thickok=True
+    elif thick.find('mm')>0:
+        print('!... mm ! I need rho=',rho)
+        thick=float(thick.split('mm')[0])
+        thick=sr.get_mgcm2( thick*1000,  rho ) # um in, mgcm2 out
+        thickok=True
     if not(thickok):
-        print('!...  thicknesses must be in ug,mg or um')
+        print('!...  thicknesses must be in ug,mg or um, mm')
         quit()
     print('i... {} thickness {:.6f} mg/cm2 for rho={:.3f} ... {:.0f} A = {:.2f}um'.format( material.title(),thick,
                                                 rho,1000*thick/rho/1e-2  ,   1000*thick/rho/1e+2 ) )
+
     # AT THIN MOMENT I HAVE A GOOD rho an thick in mgcm2
 
     #print('D... goto TRIMIN MULTI')
@@ -222,6 +355,8 @@ def prepare_trimin( material,  thick,  rho  ):
     
     return TRIMIN
 ############# END OF PREPARE TRIMIN
+
+
 
 
 
@@ -468,6 +603,10 @@ if args.mode=='srim':
         #print(tmpp)
         print()
         print('{:.3f} +- {:.4f} um implanted depth'.format( tmpp['x'].mean(), tmpp['x'].std() )  )
+        mean=0.0
+        median=0.0
+        deint=0.0
+        sigma=0.0
         #print( tmpp['e'].max(),tmpp['e'].min(), de  )
     #plt.hist( tmpp['e'], 20 , facecolor='red', alpha=0.25)
     #    print("R...    E mean +- std")
@@ -493,11 +632,48 @@ if args.mode=='srim':
         print(store)
         store.close()
 
+# RUN SRIM ENDED
+
+
+
+
+
+
+        
+###############################################################  
+#
+#   Reaction Rate         
+#   rate=Nb/t; Nt/A ; sigma==cross section==xs
+#####################################
+if args.mode=='rrate':
+    Nb=args.number
+    if Nb[-2:]=='nA':   Nb=float(Nb[:-2])*1e-9/1.602176e-19
+    elif Nb[-2:]=='uA': Nb=float(Nb[:-2])*1e-6/1.602176e-19
+    elif Nb[-2:]=='mA': Nb=float(Nb[:-2])*1e-3/1.602176e-19
+    else: Nb=float(Nb)
+
+    sigma=  float(args.xsection)  # give it in barns= cm2
+
+    rho_S,just_rho,Mm_amu=get_thick_rho( args.material , args.thickness, args.density )
+    rho_S = rho_S  /1e+3 # mg -> g/cm2
+    Na=6.24+23   # i think - Avogadro at/ mol   or 1e+26/kmol
+    Mm=Mm_amu    # molar weight -  isotopic should be
+    
+    rrate=Nb * rho_S *Na /Mm *sigma
+    print("Beam {:.4g} cps; XS={:.4g} barns; rho_S={:.4g} mg/cm2  Mm={:.3f} g/mol".format( Nb, sigma, 1000*rho_S, Mm) )
+    print("Reaction rate: {:.4g} cps".format(rrate))
+    print("Reaction rate: {:.4g} cps/sr".format(rrate/4/3.1415926 ))
+
+
+
+
+
     
 
+    
 ###############################################################  STORE
 #
-#   store 
+#   (UN) store  and   plot
 #
 #####################################
 if args.mode=='store':
@@ -507,18 +683,70 @@ if args.mode=='store':
         store = pd.HDFStore( stor[0] )
         if len(stor)>1:
             plots=[]
+            #========= i want to plot dE histogram with convolution fwhm
             for inx in range( len(stor)-1 ):
                 dfname=sorted(store.keys())[ int(stor[inx+1])]
                 print('o... openning: ', dfname )
                 df=store[dfname]
-                if float(args.fwhm)>0.: ########## GENERATE GAUSS ############ fwhm=2.355sigma
-                    print('i...  mean before convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
-                    df['fwhm']=np.random.normal( 0.0, float(args.fwhm)/2.355 ,  len(df) )
-                    df['e']=df['e']+df['fwhm']
-                    print('i... mean with    convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
-                plt.hist( df['e'], 20, ec='k',alpha=0.3,label=dfname) 
-            plt.legend( loc=4 , fontsize="x-small" )
-            plt.show()
+                plotme=False
+                #==================  if fwhm .... CONVOLUTE;  yz ... scatter;  cosy cosz ...angles
+                if args.fwhm=="x": #======= implantation plot
+                    plt.hist( df['x'], 20, ec='k',alpha=0.3,label=dfname+' implant [um]')
+                    plotme=True
+                if args.fwhm=="y": #======= implantation plot
+                    plt.hist( df['y'], 20, ec='k',alpha=0.3,label=dfname+' implant [um]')
+                    plotme=True
+                if args.fwhm=="z": #======= implantation plot
+                    plt.hist( df['z'], 20, ec='k',alpha=0.3,label=dfname+' implant [um]')
+                    plotme=True
+                                        
+                    #plt.scatter( df['z']/1e+4, df['y']/1e+4,alpha=0.3,label=dfname+' [um]' ) 
+                if args.fwhm=="yz": #======= scatter plot  Y Z 
+                    plt.scatter( df['z'], df['y'],alpha=0.3,label=dfname+' [um]' )
+                    plotme=True
+                if args.fwhm=="cos" and  'e' in df.keys(): #======= scatter plot cosy cosz
+                    plt.scatter( df['cosz'], df['cosy'], alpha=0.3, label=dfname+' [rad]' )
+                    plotme=True
+
+                if args.fwhm=="cosy" and  'e' in df.keys(): #======= scatter plot cosy cosz
+                    plt.hist( df['cosy'], 20, ec='k',alpha=0.3,label=dfname+' implant [rad]')
+                    plotme=True
+                if args.fwhm=="cosz" and  'e' in df.keys(): #======= scatter plot cosy cosz
+                    plt.hist( df['cosz'], 20, ec='k',alpha=0.3,label=dfname+' implant [rad]')
+                    plotme=True
+                if args.fwhm=="view": #======= VIEW DATA
+                    print(df)
+                try:
+                    floatfwh=float(args.fwhm)
+                except:
+                    floatfwh=-1
+                if floatfwh>=0.: #====== GENERATE GAUSS ======== fwhm=2.355sigma
+                    if 'e' in df.keys():
+                        print("...... MEAN ENERGY MODE")
+                        print('i...  mean before convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
+                        df['fwhm']=np.random.normal( 0.0, float(args.fwhm)/2.355 ,  len(df) )
+                        df['e']=df['e']+df['fwhm']
+                        print('i...  mean with   convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
+                        plt.hist( df['e'], 20, ec='k',alpha=0.3,label=dfname)
+                        plotme=True
+                    elif floatfwh>0:
+                        print("...... MEAN ENERGY MODE FOR IMPLANT")
+                        df['fwhm']=np.random.normal( 0.0, float(args.fwhm)/2.355 ,  len(df) )
+                        ENE=dfname.split('_')[-4]+'.'+dfname.split('_')[-3]
+                        ENE=float(ENE[1:])
+                        df['e']=ENE+df['fwhm']
+                        print('i...  mean with   convolution: {:.3f} {:.4f}'.format(df['e'].mean(),df['e'].std() ))
+                        plt.hist( df['e'], 20, ec='k',alpha=0.3,label=dfname)
+                        plotme=True
+
+                    else:
+                        print("....... IMPLANT MODE")
+                        plt.hist( df['x'], 20, ec='k',alpha=0.3,label=dfname+' [um]')
+                        plotme=True
+                    
+            if plotme:
+                plt.legend( loc=4 , fontsize="x-small" )
+                plt.show()
         else:
             for i,v in enumerate(sorted(store.keys())):print("{:03d} {}".format(i,v) )
         
