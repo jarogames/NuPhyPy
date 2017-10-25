@@ -286,7 +286,7 @@ class isotope:
                         return None
                 self.isodensity=densities[Z]/molarweights[Z]*self.amu
                 if not silent:
-                    print('=... {} ( {} {} ) rho_iz={:.3f} g/cm3 rho_elm={:.3f} g/cm3 Mm_el={:.3f}g/mol amu={:.4f} g/mol'.format( self.name,A,Z,self.isodensity,densities[Z],molarweights[Z],self.amu) )
+                    print('=... {:5s}({:3d} {:2d} ) rho_iz={:.3f} g/cm3 rho_elm={:.3f} g/cm3 Mm_el={:6.3f}g/mol amu={:7.4f} g/mol'.format( self.name,A,Z,self.isodensity,densities[Z],molarweights[Z],self.amu) )
                 if len(gas)==0:
                         for i in densities:
                                 if i>0.1:

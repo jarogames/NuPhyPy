@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
+_DEBUG=0
 from math import sin,cos,tan,pi,sqrt,asin,atan
 def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, ExcT=0, theta=10.0 , silent=0 ):
-
+    
         #my (  $exctgt, $amu1, $amu2, $amu3, $amu4, $Q )=@_;
 
         Q= op_mex+ot_mex-oo_mex-oor_mex
-        #    print "Q=$Q\n";
+        if _DEBUG==1: print("DEBUG ... Q={}".format(Q) );
         if silent==0:
-            print("---- {:3.1f} deg ---TKE={:6.3f} MeV  Q={:6.3f} MeV--------".format(theta,TKE,Q) )
+                print("---- {:3.1f} deg ---TKE={:6.3f} MeV  Q={:6.3f} MeV--------".format(theta,TKE,Q) )
         #rs;
         m1=op_amu* 931.49403
         m2=ot_amu* 931.49403
@@ -16,7 +17,7 @@ def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, E
         t=TKE  # projectile energy
         # adding excitation of target later
 
-        #print("   AMUs (nudat): %f %f %f %f" % (m1,m2,m3,m4) )
+        if _DEBUG==1:  print("DEBUG...   AMUs (nudat): %f %f %f %f" % (m1,m2,m3,m4) )
         es=t + m1  + m2;
         ##### JAROCMS p1 good; E1 ^2=(t + m1)**2  ####
         p1=sqrt(     (t + m1)**2  - m1**2  )
@@ -24,7 +25,7 @@ def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, E
         Ecms2= (t + m1)**2   +  m2**2  + 2*(t + m1)*m2 - p1**2
         Ecms=sqrt( Ecms2 )
         TKEcms=Ecms-m1-m2
-        ##print( "TKEcms=",TKEcms)
+        if _DEBUG!=0:  print("DEBUG... TKEcms=",TKEcms)
         
         # theta is defacto theta3.
         costh3=cos( theta * 3.1415926535/180);
@@ -50,13 +51,15 @@ def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, E
                 print("    SQ < 0  : ",SQ,"  : setting to           ##### ZERO ####")
                 SQ=0
                 INVALID=1
+                print("!... probably under threshold, quitting")
+                return
 
         SQ=sqrt( SQ ) # prepare for sqrt   <0
         ####### 2 SOLUTIONS ########
         t3a=( a3b * es + p1* costh3* SQ)/2/( es**2 - p1**2* costh3**2) - m3
         t3b=( a3b * es - p1* costh3* SQ)/2/( es**2 - p1**2* costh3**2) - m3
         ####### 2 SOLUTIONS ########
-        #   print "    kinetic E T3=$t3a ($t3b) \n";
+        if _DEBUG!=0: print("DEBUG...    kinetic E T3={} ({}) \n".format(t3a,t3b) );
 
 
         # prepare 2-solution's --- decision......  
@@ -74,7 +77,7 @@ def _REACT( op_amu,op_mex,ot_amu,ot_mex,oo_amu,oo_mex,oor_amu,oor_mex, TKE=21, E
         # varianta p3c: (19) and (20)
         Es=t + m1 +m2
         Esc= Es * sqrt( 1-V**2 )
-#		print('DEBUG Es,Esc',Es,Esc)
+        if _DEBUG!=0: print('DEBUG ... Es,Esc',Es,Esc)
         #PROB  print "tot E= $Es  totEcms = $Esc   p3c= $p3c\n";
         p3c=sqrt( ( Esc**2-( m3+ m4)**2)*( Esc**2-( m3- m4)**2) )/2/Esc
         #PROB  print "tot E= $Es  totEcms = $Esc   p3c= $p3c\n";

@@ -1,3 +1,7 @@
+NuPhyPy.egg-info/
+build/
+dist/
+version.py
 *.h5
 .root_hist
 .ipynb_check*
